@@ -18,48 +18,53 @@ function pickBestArticle(articles: NewsDataArticle[]): NewsDataArticle | null {
 }
 
 export async function GET(req: NextRequest) {
+  const start = Date.now();
+  const timings: Record<string, number> = {};
+
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV !== "development") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  timings.auth = Date.now() - start;
 
   const today = new Date().toISOString().split("T")[0];
   const progressKey = `progress:${today}`;
 
   try {
-    // 処理済みテーマインデックスを取得（単純なnumber）
+    const t1 = Date.now();
     const doneIndex = (await kv.get<number>(progressKey)) ?? 0;
+    timings.kv_get_progress = Date.now() - t1;
 
     if (doneIndex >= THEME_IDS.length) {
-      return NextResponse.json({ ok: true, message: "All themes done", done: doneIndex });
+      return NextResponse.json({ ok: true, message: "All themes done", done: doneIndex, timings });
     }
 
     const themeId = THEME_IDS[doneIndex];
 
-    // 次のインデックスを先に保存（失敗してもスキップして次へ進む）
+    const t2 = Date.now();
     await kv.set(progressKey, doneIndex + 1, { ex: 86400 });
+    timings.kv_set_progress = Date.now() - t2;
 
-    // ニュース取得
+    const t3 = Date.now();
     const articles = await fetchNewsByTheme(themeId as ThemeId);
-    const article = pickBestArticle(articles);
+    timings.fetch_news = Date.now() - t3;
 
+    const article = pickBestArticle(articles);
     if (!article) {
+      timings.total = Date.now() - start;
       return NextResponse.json({
-        ok: true,
-        theme: themeId,
-        message: "No suitable articles",
-        remaining: THEME_IDS.length - doneIndex - 1,
+        ok: true, theme: themeId, message: "No suitable articles", timings,
       });
     }
 
-    // Gemini分析
+    const t4 = Date.now();
     const analysis = await analyzeArticle(article);
+    timings.gemini_analysis = Date.now() - t4;
+
     if (!analysis) {
+      timings.total = Date.now() - start;
       return NextResponse.json({
-        ok: true,
-        theme: themeId,
-        message: "Analysis failed",
-        remaining: THEME_IDS.length - doneIndex - 1,
+        ok: true, theme: themeId, message: "Analysis failed", timings,
       });
     }
 
@@ -81,11 +86,18 @@ export async function GET(req: NextRequest) {
       created_at: new Date().toISOString(),
     };
 
-    // 既存データに追記
+    const t5 = Date.now();
     const existing = await getArticles(today);
+    timings.kv_get_articles = Date.now() - t5;
+
     const combined = [...existing, analyzed];
+
+    const t6 = Date.now();
     await saveArticles(today, combined);
     await setLatestDate(today);
+    timings.kv_save = Date.now() - t6;
+
+    timings.total = Date.now() - start;
 
     return NextResponse.json({
       ok: true,
@@ -94,9 +106,10 @@ export async function GET(req: NextRequest) {
       title: analysis.title_ja,
       total: combined.length,
       remaining: THEME_IDS.length - doneIndex - 1,
+      timings,
     });
   } catch (e) {
-    console.error("Cron error:", e);
-    return NextResponse.json({ error: String(e) }, { status: 500 });
+    timings.total = Date.now() - start;
+    return NextResponse.json({ error: String(e), timings }, { status: 500 });
   }
 }
