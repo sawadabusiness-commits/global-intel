@@ -2,18 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchNewsByTheme } from "@/lib/newsdata";
 import { analyzeArticle } from "@/lib/gemini";
 import { saveArticles, getArticles, setLatestDate } from "@/lib/kv";
-import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
+import type { AnalyzedArticle, NewsDataArticle, ThemeId } from "@/lib/types";
 import { THEMES } from "@/lib/themes";
 import { kv } from "@vercel/kv";
 
 export const maxDuration = 60;
-
-// 3バッチに分割: 4テーマ / 3テーマ / 3テーマ
-const BATCH_THEMES: Record<string, string[]> = {
-  "1": ["geopolitics", "tech_society", "economic_policy", "emerging_markets"],
-  "2": ["crime_drugs", "demographics", "energy_resources"],
-  "3": ["financial_system", "food_supply", "space_cyber"],
-};
 
 function pickBestArticle(articles: NewsDataArticle[]): NewsDataArticle | null {
   const sorted = articles
@@ -28,74 +21,87 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const batch = req.nextUrl.searchParams.get("batch") ?? "1";
   const today = new Date().toISOString().split("T")[0];
-  const themeIds = BATCH_THEMES[batch] ?? BATCH_THEMES["1"];
+  const progressKey = `progress:${today}`;
 
   try {
-    // このバッチ担当テーマのニュースを取得
-    const picked: NewsDataArticle[] = [];
-    for (let i = 0; i < themeIds.length; i++) {
-      if (i > 0) await new Promise((r) => setTimeout(r, 1000));
-      const articles = await fetchNewsByTheme(themeIds[i] as any);
-      const best = pickBestArticle(articles);
-      if (best) picked.push(best);
+    // 今日処理済みのテーマを取得
+    const done = await kv.smembers(progressKey) as string[];
+    const doneSet = new Set(done);
+
+    // 未処理のテーマを探す
+    const nextTheme = THEMES.find((t) => !doneSet.has(t.id));
+    if (!nextTheme) {
+      return NextResponse.json({ ok: true, message: "All themes done", done: done.length });
     }
 
-    if (picked.length === 0) {
-      return NextResponse.json({ ok: true, batch, message: "No articles found" });
-    }
+    // ニュース取得
+    const articles = await fetchNewsByTheme(nextTheme.id as ThemeId);
+    const article = pickBestArticle(articles);
 
-    // 各記事をGemini分析（2秒間隔）
-    const analyzed: AnalyzedArticle[] = [];
-    for (const article of picked) {
-      if (analyzed.length > 0) {
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-
-      const analysis = await analyzeArticle(article);
-      if (!analysis) continue;
-
-      analyzed.push({
-        id: article.article_id,
-        title_en: article.title,
-        title_ja: analysis.title_ja,
-        summary_ja: analysis.summary_ja,
-        source: article.source_name,
-        url: article.link,
-        region: (article.country ?? []).join(", "),
-        published: article.pubDate,
-        read_time: 3,
-        primary_theme: analysis.primary_theme,
-        cross_themes: analysis.cross_themes,
-        impact: analysis.impact,
-        timeframe: analysis.timeframe,
-        analysis,
-        created_at: new Date().toISOString(),
+    if (!article) {
+      // 記事がなくても処理済みにする
+      await kv.sadd(progressKey, nextTheme.id);
+      await kv.expire(progressKey, 86400);
+      return NextResponse.json({
+        ok: true,
+        theme: nextTheme.id,
+        message: "No suitable articles",
+        remaining: THEMES.length - doneSet.size - 1,
       });
     }
 
-    // 既存データに追記して保存
-    const existing = await getArticles(today);
-    const existingIds = new Set(existing.map((a) => a.id));
-    const newArticles = analyzed.filter((a) => !existingIds.has(a.id));
-    const combined = [...existing, ...newArticles];
+    // Gemini分析
+    const analysis = await analyzeArticle(article);
+    if (!analysis) {
+      await kv.sadd(progressKey, nextTheme.id);
+      await kv.expire(progressKey, 86400);
+      return NextResponse.json({
+        ok: true,
+        theme: nextTheme.id,
+        message: "Analysis failed",
+        remaining: THEMES.length - doneSet.size - 1,
+      });
+    }
 
+    const analyzed: AnalyzedArticle = {
+      id: article.article_id,
+      title_en: article.title,
+      title_ja: analysis.title_ja,
+      summary_ja: analysis.summary_ja,
+      source: article.source_name,
+      url: article.link,
+      region: (article.country ?? []).join(", "),
+      published: article.pubDate,
+      read_time: 3,
+      primary_theme: analysis.primary_theme,
+      cross_themes: analysis.cross_themes,
+      impact: analysis.impact,
+      timeframe: analysis.timeframe,
+      analysis,
+      created_at: new Date().toISOString(),
+    };
+
+    // 既存データに追記
+    const existing = await getArticles(today);
+    const combined = [...existing, analyzed];
     await saveArticles(today, combined);
     await setLatestDate(today);
 
+    // 処理済みマーク
+    await kv.sadd(progressKey, nextTheme.id);
+    await kv.expire(progressKey, 86400);
+
     return NextResponse.json({
       ok: true,
-      batch: Number(batch),
+      theme: nextTheme.id,
       date: today,
-      themes: themeIds,
-      picked: picked.length,
-      analyzed: analyzed.length,
-      existing: existing.length,
+      title: analysis.title_ja,
       total: combined.length,
+      remaining: THEMES.length - doneSet.size - 1,
     });
   } catch (e) {
-    console.error(`Cron batch ${batch} error:`, e);
+    console.error("Cron error:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
