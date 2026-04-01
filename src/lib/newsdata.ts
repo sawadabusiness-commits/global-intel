@@ -11,29 +11,39 @@ export async function fetchNewsByTheme(themeId: ThemeId): Promise<NewsDataArticl
   const params = new URLSearchParams({
     apikey: process.env.NEWSDATA_API_KEY!,
     q,
-    language: "en,ja",
+    language: "en",
     size: "10",
   });
 
-  const res = await fetch(`${API_BASE}?${params}`, { cache: "no-store" });
-  if (!res.ok) {
-    console.error(`NewsData fetch failed for ${themeId}:`, res.status);
+  try {
+    const res = await fetch(`${API_BASE}?${params}`, { cache: "no-store" });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`NewsData fetch failed for ${themeId}: ${res.status} ${errText}`);
+      return [];
+    }
+
+    const data: NewsDataResponse = await res.json();
+    return data.results ?? [];
+  } catch (e) {
+    console.error(`NewsData fetch error for ${themeId}:`, e);
     return [];
   }
-
-  const data: NewsDataResponse = await res.json();
-  return data.results ?? [];
 }
 
 export async function fetchAllThemes(): Promise<{ themeId: ThemeId; articles: NewsDataArticle[] }[]> {
-  const results = await Promise.all(
-    THEMES.map(async (theme) => {
-      // 少し間隔を開けてレート制限を避ける
-      await new Promise((r) => setTimeout(r, 200));
-      const articles = await fetchNewsByTheme(theme.id);
-      return { themeId: theme.id, articles };
-    })
-  );
+  const results: { themeId: ThemeId; articles: NewsDataArticle[] }[] = [];
+
+  // 順番に実行してレート制限を避ける
+  for (const theme of THEMES) {
+    if (results.length > 0) {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    const articles = await fetchNewsByTheme(theme.id);
+    results.push({ themeId: theme.id, articles });
+    console.log(`${theme.id}: ${articles.length} articles`);
+  }
+
   return results;
 }
 
