@@ -1,10 +1,34 @@
 import { NextResponse } from "next/server";
 import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
-import { curateArticles, analyzeArticle } from "@/lib/gemini";
+import { analyzeArticle } from "@/lib/gemini";
 import { saveArticles, setLatestDate } from "@/lib/kv";
 import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
 
 export const maxDuration = 60;
+
+// テーマごとに最もdescriptionが長い（情報量が多い）記事を1本選ぶ
+function pickBestPerTheme(
+  themeResults: { themeId: string; articles: NewsDataArticle[] }[]
+): NewsDataArticle[] {
+  const picked: NewsDataArticle[] = [];
+  const seen = new Set<string>();
+
+  for (const { articles } of themeResults) {
+    // descriptionが長い順にソート
+    const sorted = [...articles]
+      .filter((a) => a.description && a.description.length > 50)
+      .sort((a, b) => (b.description?.length ?? 0) - (a.description?.length ?? 0));
+
+    for (const a of sorted) {
+      if (!seen.has(a.article_id)) {
+        seen.add(a.article_id);
+        picked.push(a);
+        break;
+      }
+    }
+  }
+  return picked;
+}
 
 export async function GET() {
   const today = new Date().toISOString().split("T")[0];
@@ -23,32 +47,33 @@ export async function GET() {
       return NextResponse.json({ ok: true, message: "No articles found", fetched: 0 });
     }
 
-    // 2. Geminiで記事を選別（10〜15本）
-    const curated = await curateArticles(unique);
-    console.log(`Curated ${curated.length} articles`);
+    // 2. テーマごとに1本ずつ選ぶ（テストでは3本に制限）
+    const picked = pickBestPerTheme(themeResults).slice(0, 3);
+    console.log(`Picked ${picked.length} articles for analysis`);
 
-    // 3. 選別された記事を3層分析（最初の3本だけテスト）
+    // 3. Geminiで3層分析
     const analyzed: AnalyzedArticle[] = [];
-    for (const c of curated.slice(0, 3)) {
-      const original = unique.find((a) => a.article_id === c.article_id);
-      if (!original) continue;
-
+    for (const article of picked) {
       if (analyzed.length > 0) {
         await new Promise((r) => setTimeout(r, 8000));
       }
 
-      const analysis = await analyzeArticle(original);
-      if (!analysis) continue;
+      console.log(`Analyzing: ${article.title.slice(0, 60)}...`);
+      const analysis = await analyzeArticle(article);
+      if (!analysis) {
+        console.log("Analysis returned null, skipping");
+        continue;
+      }
 
       analyzed.push({
-        id: original.article_id,
-        title_en: original.title,
+        id: article.article_id,
+        title_en: article.title,
         title_ja: analysis.title_ja,
         summary_ja: analysis.summary_ja,
-        source: original.source_name,
-        url: original.link,
-        region: (original.country ?? []).join(", "),
-        published: original.pubDate,
+        source: article.source_name,
+        url: article.link,
+        region: (article.country ?? []).join(", "),
+        published: article.pubDate,
         read_time: 3,
         primary_theme: analysis.primary_theme,
         cross_themes: analysis.cross_themes,
@@ -57,17 +82,20 @@ export async function GET() {
         analysis,
         created_at: new Date().toISOString(),
       });
+      console.log(`Analyzed: ${analysis.title_ja}`);
     }
 
     // 4. KVに保存
-    await saveArticles(today, analyzed);
-    await setLatestDate(today);
+    if (analyzed.length > 0) {
+      await saveArticles(today, analyzed);
+      await setLatestDate(today);
+    }
 
     return NextResponse.json({
       ok: true,
       date: today,
       fetched: unique.length,
-      curated: curated.length,
+      picked: picked.length,
       analyzed: analyzed.length,
     });
   } catch (e) {
