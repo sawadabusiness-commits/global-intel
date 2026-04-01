@@ -58,11 +58,15 @@ article_id: ${a.article_id}
   const prompt = `${BATCH_SUMMARY_PROMPT}\n\n═══════════════════════════════════════\n以下の${articles.length}件の記事を分析してください:\n\n${articleList}`;
 
   try {
-    const text = await callGemini(prompt, 4096);
-    return JSON.parse(text);
+    const text = await callGemini(prompt, 16384);
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) {
+      throw new Error(`Expected array, got: ${JSON.stringify(parsed).slice(0, 200)}`);
+    }
+    return parsed;
   } catch (e) {
     console.error("Batch summarize failed:", e);
-    return [];
+    throw e; // cronルートでエラーをキャッチしてレスポンスに含める
   }
 }
 

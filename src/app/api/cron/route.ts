@@ -46,7 +46,17 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Geminiで一括軽量分析（~30秒）
-    const summaries = await batchSummarize(picked);
+    let summaries;
+    try {
+      summaries = await batchSummarize(picked);
+    } catch (e) {
+      return NextResponse.json({
+        error: "batchSummarize failed",
+        detail: String(e),
+        picked: picked.length,
+        pickedTitles: picked.map((a) => a.title).slice(0, 3),
+      }, { status: 500 });
+    }
 
     // 3. 記事データを組み立て（深層分析は空）
     const articleMap = new Map(picked.map((a) => [a.article_id, a]));
