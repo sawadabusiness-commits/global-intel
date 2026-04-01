@@ -7,7 +7,7 @@ export const THEMES: Theme[] = [
     labelJa: "地政学",
     icon: "⬡",
     color: "#F87171",
-    queryKeywords: ["geopolitics", "sanctions", "trade war", "territorial dispute", "NATO", "BRICS", "military alliance", "diplomatic"],
+    queryKeywords: ["geopolitics", "sanctions", "trade war", "NATO", "BRICS"],
   },
   {
     id: "tech_society",
@@ -15,7 +15,7 @@ export const THEMES: Theme[] = [
     labelJa: "テクノロジー×社会",
     icon: "◈",
     color: "#60A5FA",
-    queryKeywords: ["AI regulation", "social media impact", "automation jobs", "digital privacy", "deepfake", "brain computer interface", "tech ethics"],
+    queryKeywords: ["AI regulation", "automation jobs", "digital privacy", "tech ethics"],
   },
   {
     id: "economic_policy",
@@ -23,7 +23,7 @@ export const THEMES: Theme[] = [
     labelJa: "経済政策",
     icon: "◇",
     color: "#FBBF24",
-    queryKeywords: ["central bank", "interest rate", "fiscal policy", "inflation", "monetary policy", "debt crisis", "quantitative easing", "tariff"],
+    queryKeywords: ["central bank", "interest rate", "inflation", "tariff"],
   },
   {
     id: "emerging_markets",
@@ -31,7 +31,7 @@ export const THEMES: Theme[] = [
     labelJa: "新興国",
     icon: "◆",
     color: "#34D399",
-    queryKeywords: ["emerging market", "Africa economy", "India growth", "Southeast Asia", "Latin America", "frontier market", "development finance"],
+    queryKeywords: ["emerging market", "Africa economy", "India growth", "Southeast Asia"],
   },
   {
     id: "crime_drugs",
@@ -39,7 +39,7 @@ export const THEMES: Theme[] = [
     labelJa: "犯罪・ドラッグ",
     icon: "▣",
     color: "#C084FC",
-    queryKeywords: ["cartel", "fentanyl", "organized crime", "money laundering", "trafficking", "cybercrime", "fraud", "dark web"],
+    queryKeywords: ["cartel", "fentanyl", "organized crime", "money laundering"],
   },
   {
     id: "demographics",
@@ -47,7 +47,7 @@ export const THEMES: Theme[] = [
     labelJa: "人口動態・労働",
     icon: "⏣",
     color: "#FB923C",
-    queryKeywords: ["fertility rate", "aging population", "immigration policy", "labor shortage", "demographic decline", "urbanization", "migration crisis"],
+    queryKeywords: ["aging population", "immigration policy", "labor shortage"],
   },
   {
     id: "energy_resources",
@@ -55,7 +55,7 @@ export const THEMES: Theme[] = [
     labelJa: "エネルギー・資源",
     icon: "⬢",
     color: "#4ADE80",
-    queryKeywords: ["rare earth", "oil price", "renewable energy", "nuclear power", "critical minerals", "lithium", "decarbonization", "energy security"],
+    queryKeywords: ["rare earth", "oil price", "renewable energy", "energy security"],
   },
   {
     id: "financial_system",
@@ -63,7 +63,7 @@ export const THEMES: Theme[] = [
     labelJa: "金融・通貨体制",
     icon: "⟐",
     color: "#38BDF8",
-    queryKeywords: ["SWIFT", "CBDC", "digital currency", "dollar hegemony", "payment system", "financial regulation", "banking crisis", "fintech"],
+    queryKeywords: ["CBDC", "digital currency", "banking crisis", "fintech"],
   },
   {
     id: "food_supply",
@@ -71,7 +71,7 @@ export const THEMES: Theme[] = [
     labelJa: "食料・サプライチェーン",
     icon: "⬟",
     color: "#A3E635",
-    queryKeywords: ["food security", "grain export", "fertilizer shortage", "supply chain disruption", "agriculture technology", "food price", "famine"],
+    queryKeywords: ["food security", "supply chain", "agriculture", "food price"],
   },
   {
     id: "space_cyber",
@@ -79,7 +79,7 @@ export const THEMES: Theme[] = [
     labelJa: "宇宙・海洋・サイバー",
     icon: "◎",
     color: "#E879F9",
-    queryKeywords: ["satellite", "Starlink", "submarine cable", "cyber attack", "space militarization", "arctic", "digital sovereignty"],
+    queryKeywords: ["satellite", "cyber attack", "submarine cable"],
   },
 ];
 

@@ -7,7 +7,13 @@ export async function fetchNewsByTheme(themeId: ThemeId): Promise<NewsDataArticl
   const theme = THEMES.find((t) => t.id === themeId);
   if (!theme) return [];
 
-  const q = theme.queryKeywords.join(" OR ");
+  // クエリが100文字を超えないようにキーワードを制限
+  let q = "";
+  for (const kw of theme.queryKeywords) {
+    const next = q ? `${q} OR ${kw}` : kw;
+    if (next.length > 95) break;
+    q = next;
+  }
   const params = new URLSearchParams({
     apikey: process.env.NEWSDATA_API_KEY!,
     q,
