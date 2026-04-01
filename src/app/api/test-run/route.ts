@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
+import { deduplicateArticles } from "@/lib/newsdata";
 import { analyzeArticle } from "@/lib/gemini";
 import { saveArticles, setLatestDate } from "@/lib/kv";
 import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
@@ -34,8 +34,15 @@ export async function GET() {
   const today = new Date().toISOString().split("T")[0];
 
   try {
-    // 1. 全テーマからニュース取得
-    const themeResults = await fetchAllThemes();
+    // 1. テストでは最初の3テーマだけ取得（時間短縮）
+    const { fetchNewsByTheme } = await import("@/lib/newsdata");
+    const { THEMES } = await import("@/lib/themes");
+    const themeResults = [];
+    for (const theme of THEMES.slice(0, 3)) {
+      const articles = await fetchNewsByTheme(theme.id);
+      themeResults.push({ themeId: theme.id, articles });
+      console.log(`${theme.id}: ${articles.length} articles`);
+    }
     const allArticles: NewsDataArticle[] = [];
     for (const r of themeResults) {
       allArticles.push(...r.articles);
@@ -47,8 +54,8 @@ export async function GET() {
       return NextResponse.json({ ok: true, message: "No articles found", fetched: 0 });
     }
 
-    // 2. テーマごとに1本ずつ選ぶ（テストでは3本に制限）
-    const picked = pickBestPerTheme(themeResults).slice(0, 3);
+    // 2. テストでは1本だけ分析
+    const picked = pickBestPerTheme(themeResults).slice(0, 1);
     console.log(`Picked ${picked.length} articles for analysis`);
 
     // 3. Geminiで3層分析
