@@ -2,18 +2,48 @@
 
 import { useState } from "react";
 import { THEME_MAP, IMPACT_LEVELS, TIMEFRAMES } from "@/lib/themes";
-import type { AnalyzedArticle } from "@/lib/types";
+import type { AnalyzedArticle, GeminiAnalysis } from "@/lib/types";
 import AnalystTabs from "./AnalystTabs";
 
 interface Props {
   article: AnalyzedArticle;
+  date: string;
 }
 
-export default function ArticleCard({ article }: Props) {
+export default function ArticleCard({ article, date }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [analysis, setAnalysis] = useState<GeminiAnalysis | null>(article.analysis);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const theme = THEME_MAP[article.primary_theme];
   const impact = IMPACT_LEVELS[article.impact];
   const timeframe = TIMEFRAMES[article.timeframe];
+
+  async function handleExpand() {
+    const next = !expanded;
+    setExpanded(next);
+
+    // 展開時、分析データがなければ取得
+    if (next && !analysis && !loading) {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ articleId: article.id, date }),
+        });
+        if (!res.ok) throw new Error("分析に失敗しました");
+        const data = await res.json();
+        setAnalysis(data);
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setLoading(false);
+      }
+    }
+  }
 
   return (
     <article
@@ -22,7 +52,7 @@ export default function ArticleCard({ article }: Props) {
         background: "var(--surface)",
         border: `1px solid ${expanded ? theme?.color + "40" : "var(--border)"}`,
       }}
-      onClick={() => setExpanded(!expanded)}
+      onClick={handleExpand}
     >
       {/* ヘッダー */}
       <div className="flex items-start gap-3">
@@ -100,7 +130,16 @@ export default function ArticleCard({ article }: Props) {
       {/* 展開時: 3層分析 */}
       {expanded && (
         <div onClick={(e) => e.stopPropagation()}>
-          <AnalystTabs analysis={article.analysis} />
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin h-5 w-5 border-2 border-[var(--muted)] border-t-transparent rounded-full" />
+              <span className="ml-3 text-xs text-[var(--muted)]">深層分析を実行中...</span>
+            </div>
+          )}
+          {error && (
+            <div className="py-4 text-center text-xs text-red-400">{error}</div>
+          )}
+          {analysis && <AnalystTabs analysis={analysis} />}
         </div>
       )}
     </article>

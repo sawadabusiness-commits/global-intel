@@ -100,7 +100,7 @@ export default function Dashboard({ articles, date }: Props) {
         ) : (
           <div className="space-y-4">
             {filtered.map((article) => (
-              <ArticleCard key={article.id} article={article} />
+              <ArticleCard key={article.id} article={article} date={date} />
             ))}
           </div>
         )}

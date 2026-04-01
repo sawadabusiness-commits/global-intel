@@ -1,115 +1,89 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchNewsByTheme } from "@/lib/newsdata";
-import { analyzeArticle } from "@/lib/gemini";
-import { saveArticles, getArticles, setLatestDate } from "@/lib/kv";
-import type { AnalyzedArticle, NewsDataArticle, ThemeId } from "@/lib/types";
-import { THEMES } from "@/lib/themes";
-import { kv } from "@vercel/kv";
+import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
+import { batchSummarize } from "@/lib/gemini";
+import { saveArticles, setLatestDate } from "@/lib/kv";
+import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
 
 export const maxDuration = 60;
 
-const THEME_IDS = THEMES.map((t) => t.id);
+function pickBestPerTheme(
+  themeResults: { themeId: string; articles: NewsDataArticle[] }[]
+): NewsDataArticle[] {
+  const picked: NewsDataArticle[] = [];
+  const seen = new Set<string>();
 
-function pickBestArticle(articles: NewsDataArticle[]): NewsDataArticle | null {
-  const sorted = articles
-    .filter((a) => a.description && a.description.length > 50)
-    .sort((a, b) => (b.description?.length ?? 0) - (a.description?.length ?? 0));
-  return sorted[0] ?? null;
+  for (const { articles } of themeResults) {
+    const sorted = [...articles]
+      .filter((a) => a.description && a.description.length > 50)
+      .sort((a, b) => (b.description?.length ?? 0) - (a.description?.length ?? 0));
+
+    for (const a of sorted) {
+      if (!seen.has(a.article_id)) {
+        seen.add(a.article_id);
+        picked.push(a);
+        break;
+      }
+    }
+  }
+  return picked;
 }
 
 export async function GET(req: NextRequest) {
-  const start = Date.now();
-  const timings: Record<string, number> = {};
-
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV !== "development") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  timings.auth = Date.now() - start;
 
   const today = new Date().toISOString().split("T")[0];
-  const progressKey = `progress:${today}`;
 
   try {
-    const t1 = Date.now();
-    const doneIndex = (await kv.get<number>(progressKey)) ?? 0;
-    timings.kv_get_progress = Date.now() - t1;
+    // 1. 全テーマのニュース取得（~15秒）
+    const themeResults = await fetchAllThemes();
+    const picked = pickBestPerTheme(themeResults);
 
-    if (doneIndex >= THEME_IDS.length) {
-      return NextResponse.json({ ok: true, message: "All themes done", done: doneIndex, timings });
+    if (picked.length === 0) {
+      return NextResponse.json({ ok: true, message: "No articles found" });
     }
 
-    const themeId = THEME_IDS[doneIndex];
+    // 2. Geminiで一括軽量分析（~30秒）
+    const summaries = await batchSummarize(picked);
 
-    const t2 = Date.now();
-    await kv.set(progressKey, doneIndex + 1, { ex: 86400 });
-    timings.kv_set_progress = Date.now() - t2;
-
-    const t3 = Date.now();
-    const articles = await fetchNewsByTheme(themeId as ThemeId);
-    timings.fetch_news = Date.now() - t3;
-
-    const article = pickBestArticle(articles);
-    if (!article) {
-      timings.total = Date.now() - start;
-      return NextResponse.json({
-        ok: true, theme: themeId, message: "No suitable articles", timings,
+    // 3. 記事データを組み立て（深層分析は空）
+    const articleMap = new Map(picked.map((a) => [a.article_id, a]));
+    const analyzed: AnalyzedArticle[] = summaries
+      .filter((s) => articleMap.has(s.article_id))
+      .map((s) => {
+        const raw = articleMap.get(s.article_id)!;
+        return {
+          id: raw.article_id,
+          title_en: raw.title,
+          title_ja: s.title_ja,
+          summary_ja: s.summary_ja,
+          source: raw.source_name,
+          url: raw.link,
+          region: (raw.country ?? []).join(", "),
+          published: raw.pubDate,
+          read_time: 3,
+          primary_theme: s.primary_theme,
+          cross_themes: s.cross_themes,
+          impact: s.impact,
+          timeframe: s.timeframe,
+          analysis: null as any, // 深層分析はオンデマンドで取得
+          created_at: new Date().toISOString(),
+        };
       });
-    }
 
-    const t4 = Date.now();
-    const analysis = await analyzeArticle(article);
-    timings.gemini_analysis = Date.now() - t4;
-
-    if (!analysis) {
-      timings.total = Date.now() - start;
-      return NextResponse.json({
-        ok: true, theme: themeId, message: "Analysis failed", timings,
-      });
-    }
-
-    const analyzed: AnalyzedArticle = {
-      id: article.article_id,
-      title_en: article.title,
-      title_ja: analysis.title_ja,
-      summary_ja: analysis.summary_ja,
-      source: article.source_name,
-      url: article.link,
-      region: (article.country ?? []).join(", "),
-      published: article.pubDate,
-      read_time: 3,
-      primary_theme: analysis.primary_theme,
-      cross_themes: analysis.cross_themes,
-      impact: analysis.impact,
-      timeframe: analysis.timeframe,
-      analysis,
-      created_at: new Date().toISOString(),
-    };
-
-    const t5 = Date.now();
-    const existing = await getArticles(today);
-    timings.kv_get_articles = Date.now() - t5;
-
-    const combined = [...existing, analyzed];
-
-    const t6 = Date.now();
-    await saveArticles(today, combined);
+    await saveArticles(today, analyzed);
     await setLatestDate(today);
-    timings.kv_save = Date.now() - t6;
-
-    timings.total = Date.now() - start;
 
     return NextResponse.json({
       ok: true,
-      theme: themeId,
       date: today,
-      title: analysis.title_ja,
-      total: combined.length,
-      remaining: THEME_IDS.length - doneIndex - 1,
-      timings,
+      fetched: picked.length,
+      analyzed: analyzed.length,
     });
   } catch (e) {
-    timings.total = Date.now() - start;
-    return NextResponse.json({ error: String(e), timings }, { status: 500 });
+    console.error("Cron error:", e);
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
