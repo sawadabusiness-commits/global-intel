@@ -8,6 +8,8 @@ import { kv } from "@vercel/kv";
 
 export const maxDuration = 60;
 
+const THEME_IDS = THEMES.map((t) => t.id);
+
 function pickBestArticle(articles: NewsDataArticle[]): NewsDataArticle | null {
   const sorted = articles
     .filter((a) => a.description && a.description.length > 50)
@@ -25,42 +27,39 @@ export async function GET(req: NextRequest) {
   const progressKey = `progress:${today}`;
 
   try {
-    // 今日処理済みのテーマを取得
-    const done = await kv.smembers(progressKey) as string[];
-    const doneSet = new Set(done);
+    // 処理済みテーマインデックスを取得（単純なnumber）
+    const doneIndex = (await kv.get<number>(progressKey)) ?? 0;
 
-    // 未処理のテーマを探す
-    const nextTheme = THEMES.find((t) => !doneSet.has(t.id));
-    if (!nextTheme) {
-      return NextResponse.json({ ok: true, message: "All themes done", done: done.length });
+    if (doneIndex >= THEME_IDS.length) {
+      return NextResponse.json({ ok: true, message: "All themes done", done: doneIndex });
     }
 
+    const themeId = THEME_IDS[doneIndex];
+
+    // 次のインデックスを先に保存（失敗してもスキップして次へ進む）
+    await kv.set(progressKey, doneIndex + 1, { ex: 86400 });
+
     // ニュース取得
-    const articles = await fetchNewsByTheme(nextTheme.id as ThemeId);
+    const articles = await fetchNewsByTheme(themeId as ThemeId);
     const article = pickBestArticle(articles);
 
     if (!article) {
-      // 記事がなくても処理済みにする
-      await kv.sadd(progressKey, nextTheme.id);
-      await kv.expire(progressKey, 86400);
       return NextResponse.json({
         ok: true,
-        theme: nextTheme.id,
+        theme: themeId,
         message: "No suitable articles",
-        remaining: THEMES.length - doneSet.size - 1,
+        remaining: THEME_IDS.length - doneIndex - 1,
       });
     }
 
     // Gemini分析
     const analysis = await analyzeArticle(article);
     if (!analysis) {
-      await kv.sadd(progressKey, nextTheme.id);
-      await kv.expire(progressKey, 86400);
       return NextResponse.json({
         ok: true,
-        theme: nextTheme.id,
+        theme: themeId,
         message: "Analysis failed",
-        remaining: THEMES.length - doneSet.size - 1,
+        remaining: THEME_IDS.length - doneIndex - 1,
       });
     }
 
@@ -88,17 +87,13 @@ export async function GET(req: NextRequest) {
     await saveArticles(today, combined);
     await setLatestDate(today);
 
-    // 処理済みマーク
-    await kv.sadd(progressKey, nextTheme.id);
-    await kv.expire(progressKey, 86400);
-
     return NextResponse.json({
       ok: true,
-      theme: nextTheme.id,
+      theme: themeId,
       date: today,
       title: analysis.title_ja,
       total: combined.length,
-      remaining: THEMES.length - doneSet.size - 1,
+      remaining: THEME_IDS.length - doneIndex - 1,
     });
   } catch (e) {
     console.error("Cron error:", e);
