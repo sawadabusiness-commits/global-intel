@@ -2,7 +2,7 @@ import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT } from "./prompts";
 import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe } from "./types";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash"];
+const MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
 
 async function callGeminiWithModel(
   model: string,
