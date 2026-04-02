@@ -9,11 +9,15 @@ async function callGeminiWithModel(
   prompt: string,
   maxTokens: number
 ): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45000); // 45秒タイムアウト
+
   const res = await fetch(
     `${GEMINI_BASE}/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
@@ -23,7 +27,7 @@ async function callGeminiWithModel(
         },
       }),
     }
-  );
+  ).finally(() => clearTimeout(timeout));
 
   if (!res.ok) {
     const err = await res.text();
@@ -41,7 +45,8 @@ async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
       return await callGeminiWithModel(MODELS[i], prompt, maxTokens);
     } catch (e) {
       const msg = String(e);
-      if ((msg.includes("429") || msg.includes("503")) && i < MODELS.length - 1) {
+      const isRetryable = msg.includes("429") || msg.includes("503") || msg.includes("abort");
+      if (isRetryable && i < MODELS.length - 1) {
         console.log(`${MODELS[i]} rate limited, falling back to ${MODELS[i + 1]}`);
         continue;
       }
