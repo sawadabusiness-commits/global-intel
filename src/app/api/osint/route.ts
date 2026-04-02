@@ -78,21 +78,6 @@ export async function GET(req: NextRequest) {
     result.data_sources = sourceCounts;
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
-    // e-Stat デバッグ: 消費者物価指数(CPI)の統計表を検索
-    try {
-      const estatKey = process.env.ESTAT_API_KEY;
-      const searchUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${estatKey}&searchWord=${encodeURIComponent("消費者物価指数")}&limit=10`;
-      const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(10000) });
-      const searchData = await searchRes.json();
-      const tables = searchData?.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
-      result.estat_debug = (Array.isArray(tables) ? tables : [tables]).filter(Boolean).slice(0, 5).map((t: any) => ({
-        id: t["@id"],
-        title: t.TITLE?.["$"] ?? t.TITLE,
-        survey: t.STATISTICS_NAME,
-      }));
-    } catch (e) {
-      result.estat_debug = { error: String(e) };
-    }
 
     // 2. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
     const latestDate = await getLatestDate();

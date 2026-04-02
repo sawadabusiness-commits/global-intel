@@ -259,7 +259,7 @@ export async function fetchEDINET(): Promise<OsintDataPoint[]> {
 // ============================================================
 // e-Stat — 日本政府統計（ESTAT_API_KEY 必要）
 // ============================================================
-// 消費者物価指数: statsDataId=0003421913
+// 消費者物価指数: statsDataId=0003427113
 // cdCat01=0001 → 総合, cdArea=00000 → 全国
 function parseEStatTime(timeCode: string): string {
   // "2025000101" → "2025-01", "2025000601" → "2025-06"
@@ -276,7 +276,7 @@ export async function fetchEStatData(): Promise<OsintDataPoint[]> {
   if (!apiKey) return [];
 
   try {
-    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003421913&cdCat01=0001&cdArea=00000&limit=24&metaGetFlg=N&sectionHeaderFlg=1`;
+    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003427113&cdCat01=0001&cdArea=00000&limit=24&metaGetFlg=N&sectionHeaderFlg=1`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) {
       console.error(`e-Stat API error: ${res.status}`);
