@@ -39,17 +39,25 @@ async function callGeminiWithModel(
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-// 3 Flash → 2.5 Flash → 2.0 Flash の順でフォールバック
+// 3 Flash → 2.5 Flash → 3.1 Lite → 2.0 Flash の順でフォールバック
+let lastUsedModel = "";
+
+export function getLastUsedModel() {
+  return lastUsedModel;
+}
+
 async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
   for (let i = 0; i < MODELS.length; i++) {
     try {
       const isLast = i === MODELS.length - 1;
-      return await callGeminiWithModel(MODELS[i], prompt, maxTokens, isLast ? 45000 : 8000);
+      const result = await callGeminiWithModel(MODELS[i], prompt, maxTokens, isLast ? 45000 : 8000);
+      lastUsedModel = MODELS[i];
+      return result;
     } catch (e) {
       const msg = String(e);
       const isRetryable = msg.includes("429") || msg.includes("503") || msg.includes("abort");
       if (isRetryable && i < MODELS.length - 1) {
-        console.log(`${MODELS[i]} rate limited, falling back to ${MODELS[i + 1]}`);
+        console.log(`${MODELS[i]} failed (${msg.includes("429") ? "429" : msg.includes("503") ? "503" : "timeout"}), trying ${MODELS[i + 1]}`);
         continue;
       }
       throw e;

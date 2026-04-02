@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
-import { batchSummarize } from "@/lib/gemini";
+import { batchSummarize, getLastUsedModel } from "@/lib/gemini";
 import { saveArticles, setLatestDate } from "@/lib/kv";
 import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
 
@@ -91,6 +91,7 @@ export async function GET(req: NextRequest) {
       date: today,
       fetched: picked.length,
       analyzed: analyzed.length,
+      model: getLastUsedModel(),
     });
   } catch (e) {
     console.error("Cron error:", e);
