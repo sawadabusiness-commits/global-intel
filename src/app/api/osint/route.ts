@@ -79,6 +79,27 @@ export async function GET(req: NextRequest) {
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
     result.acled_configured = !!(process.env.ACLED_EMAIL && process.env.ACLED_PASSWORD);
+    // ACLED OAuth debug
+    try {
+      const acledRes = await fetch("https://acleddata.com/oauth/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          username: process.env.ACLED_EMAIL!,
+          password: process.env.ACLED_PASSWORD!,
+          grant_type: "password",
+          client_id: "acled",
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const acledText = await acledRes.text();
+      result.acled_debug = {
+        status: acledRes.status,
+        response: acledText.slice(0, 300),
+      };
+    } catch (e) {
+      result.acled_debug = { error: String(e) };
+    }
 
     // 2. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
     const latestDate = await getLatestDate();
