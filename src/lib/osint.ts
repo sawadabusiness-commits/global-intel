@@ -300,6 +300,17 @@ export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
 // ============================================================
 // 異常値検出（全ソース統合）
 // ============================================================
+
+/** データが直近1年以内かどうか */
+function isRecent(dateStr: string, maxAgeMonths = 12): boolean {
+  const now = new Date();
+  // "2023" のような年だけの場合も、"2023-06" や "2023-06-15" もパース
+  const parsed = new Date(dateStr.length === 4 ? `${dateStr}-07-01` : dateStr);
+  if (isNaN(parsed.getTime())) return false;
+  const diffMs = now.getTime() - parsed.getTime();
+  return diffMs < maxAgeMonths * 30 * 24 * 60 * 60 * 1000;
+}
+
 export function detectAnomalies(
   gdeltData: GdeltToneData[],
   dataPoints: OsintDataPoint[] = [],
@@ -319,25 +330,35 @@ export function detectAnomalies(
     }
   }
 
-  // DBnomics: GDP成長率の急変（前年比2ポイント以上の変化を検出）
-  const gdpPoints = dataPoints.filter((dp) => dp.source === "dbnomics" && dp.label.includes("GDP"));
-  const gdpByCountry = new Map<string, OsintDataPoint[]>();
-  for (const dp of gdpPoints) {
-    const key = dp.country ?? "unknown";
-    if (!gdpByCountry.has(key)) gdpByCountry.set(key, []);
-    gdpByCountry.get(key)!.push(dp);
-  }
-  // Note: DBnomics returns latest observation only, so cross-year comparison
-  // requires historical data. For now, flag extreme values.
-  for (const dp of gdpPoints) {
+  // DBnomics: 直近1年以内のデータのみ異常値検出
+  const recentGdp = dataPoints.filter(
+    (dp) => dp.source === "dbnomics" && dp.label.includes("GDP") && dp.value !== null && isRecent(dp.date)
+  );
+  for (const dp of recentGdp) {
     if (dp.value !== null && (dp.value < -2 || dp.value > 8)) {
       anomalies.push({
         theme: "economic_policy", source: "dbnomics", type: "indicator_change",
-        detail: `${dp.label}が${dp.date}時点で${dp.value?.toFixed(1)}%（通常範囲外）`,
+        detail: `${dp.label}が${dp.date}時点で${dp.value.toFixed(1)}%（通常範囲外）`,
         severity: Math.abs(dp.value) > 5 ? "high" : "medium",
         current_value: dp.value, baseline_value: 2.5, change_pct: 0,
       });
     }
+  }
+
+  // FRED: 金利の急変（直近データのみ）
+  const fredRate = dataPoints.find(
+    (dp) => dp.indicator === "FEDFUNDS" && isRecent(dp.date, 1)
+  );
+  const fredPrev = dataPoints.find(
+    (dp) => dp.indicator === "DGS10" && isRecent(dp.date, 1)
+  );
+  if (fredRate?.value !== null && fredRate?.value !== undefined && fredRate.value > 6) {
+    anomalies.push({
+      theme: "financial_system", source: "fred", type: "indicator_change",
+      detail: `FF金利が${fredRate.value.toFixed(2)}%（高水準）`,
+      severity: "high",
+      current_value: fredRate.value, baseline_value: 5.0, change_pct: 0,
+    });
   }
 
   // ACLED: 紛争イベント数が多い場合
