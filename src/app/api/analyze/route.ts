@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     );
 
     if (!analysis) {
-      return NextResponse.json({ error: "Analysis failed" }, { status: 500 });
+      return NextResponse.json({ error: "分析結果が空です" }, { status: 500 });
     }
 
     // 分析結果を記事に保存

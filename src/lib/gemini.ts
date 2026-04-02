@@ -132,7 +132,7 @@ export async function deepAnalyze(
   published: string,
   region: string,
   summary: string
-): Promise<DeepAnalysis | null> {
+): Promise<DeepAnalysis> {
   const articleText = `タイトル: ${title}
 ソース: ${source}
 日付: ${published}
@@ -141,11 +141,6 @@ export async function deepAnalyze(
 
   const prompt = `${DEEP_ANALYSIS_PROMPT}\n\n═══════════════════════════════════════\n以下の記事を分析してください:\n\n${articleText}`;
 
-  try {
-    const text = await callGemini(prompt, 8192);
-    return JSON.parse(text);
-  } catch (e) {
-    console.error("Deep analysis failed:", e);
-    return null;
-  }
+  const text = await callGemini(prompt, 8192);
+  return JSON.parse(text);
 }
