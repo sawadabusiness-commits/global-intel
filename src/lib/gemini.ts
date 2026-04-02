@@ -41,7 +41,7 @@ async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
       return await callGeminiWithModel(MODELS[i], prompt, maxTokens);
     } catch (e) {
       const msg = String(e);
-      if (msg.includes("429") && i < MODELS.length - 1) {
+      if ((msg.includes("429") || msg.includes("503")) && i < MODELS.length - 1) {
         console.log(`${MODELS[i]} rate limited, falling back to ${MODELS[i + 1]}`);
         continue;
       }
