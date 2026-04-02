@@ -43,7 +43,7 @@ export async function fetchAllThemes(): Promise<{ themeId: ThemeId; articles: Ne
   // 順番に実行してレート制限を避ける
   for (const theme of THEMES) {
     if (results.length > 0) {
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 500));
     }
     const articles = await fetchNewsByTheme(theme.id);
     results.push({ themeId: theme.id, articles });
