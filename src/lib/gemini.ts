@@ -7,10 +7,11 @@ const MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash"
 async function callGeminiWithModel(
   model: string,
   prompt: string,
-  maxTokens: number
+  maxTokens: number,
+  timeoutMs = 45000
 ): Promise<string> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000); // 45秒タイムアウト
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   const res = await fetch(
     `${GEMINI_BASE}/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -42,7 +43,8 @@ async function callGeminiWithModel(
 async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
   for (let i = 0; i < MODELS.length; i++) {
     try {
-      return await callGeminiWithModel(MODELS[i], prompt, maxTokens);
+      const isLast = i === MODELS.length - 1;
+      return await callGeminiWithModel(MODELS[i], prompt, maxTokens, isLast ? 45000 : 8000);
     } catch (e) {
       const msg = String(e);
       const isRetryable = msg.includes("429") || msg.includes("503") || msg.includes("abort");
