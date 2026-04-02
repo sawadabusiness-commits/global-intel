@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
-import { batchSummarize, getLastUsedModel } from "@/lib/gemini";
+import { batchSummarize } from "@/lib/github-models";
 import { saveArticles, setLatestDate } from "@/lib/kv";
 import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
 
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
       date: today,
       fetched: picked.length,
       analyzed: analyzed.length,
-      model: getLastUsedModel(),
+      model: "gpt-4o-mini (GitHub Models)",
     });
   } catch (e) {
     console.error("Cron error:", e);

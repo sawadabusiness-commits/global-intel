@@ -1,5 +1,4 @@
-import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT } from "./prompts";
-import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe } from "./types";
+import { DEEP_ANALYSIS_PROMPT } from "./prompts";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
@@ -64,49 +63,6 @@ async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
     }
   }
   throw new Error("All Gemini models failed");
-}
-
-// --- Cron用: 複数記事を一括で軽量分析 ---
-export interface BatchSummaryItem {
-  article_id: string;
-  title_ja: string;
-  summary_ja: string;
-  primary_theme: ThemeId;
-  cross_themes: ThemeId[];
-  impact: ImpactLevel;
-  timeframe: Timeframe;
-}
-
-export async function batchSummarize(
-  articles: NewsDataArticle[]
-): Promise<BatchSummaryItem[]> {
-  const articleList = articles
-    .map(
-      (a, i) =>
-        `--- 記事${i + 1} ---
-article_id: ${a.article_id}
-タイトル: ${a.title}
-ソース: ${a.source_name}
-日付: ${a.pubDate}
-国: ${(a.country ?? []).join(", ")}
-カテゴリ: ${(a.category ?? []).join(", ")}
-概要: ${a.description ?? "(なし)"}`
-    )
-    .join("\n\n");
-
-  const prompt = `${BATCH_SUMMARY_PROMPT}\n\n═══════════════════════════════════════\n以下の${articles.length}件の記事を分析してください:\n\n${articleList}`;
-
-  try {
-    const text = await callGemini(prompt, 16384);
-    const parsed = JSON.parse(text);
-    if (!Array.isArray(parsed)) {
-      throw new Error(`Expected array, got: ${JSON.stringify(parsed).slice(0, 200)}`);
-    }
-    return parsed;
-  } catch (e) {
-    console.error("Batch summarize failed:", e);
-    throw e;
-  }
 }
 
 // --- オンデマンド: 1記事の深層3層分析 ---
