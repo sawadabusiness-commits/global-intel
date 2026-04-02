@@ -56,8 +56,8 @@ async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
     } catch (e) {
       const msg = String(e);
       const isRetryable = msg.includes("429") || msg.includes("503") || msg.includes("abort");
-      if (isRetryable && i < MODELS.length - 1) {
-        console.log(`${MODELS[i]} failed (${msg.includes("429") ? "429" : msg.includes("503") ? "503" : "timeout"}), trying ${MODELS[i + 1]}`);
+      if (isRetryable) {
+        console.log(`${MODELS[i]} failed (${msg.includes("429") ? "429" : msg.includes("503") ? "503" : "timeout"})${i < MODELS.length - 1 ? `, trying ${MODELS[i + 1]}` : ", trying GitHub Models"}`);
         continue;
       }
       throw e;
