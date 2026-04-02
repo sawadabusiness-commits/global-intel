@@ -14,7 +14,7 @@ export interface BatchSummaryItem {
   timeframe: Timeframe;
 }
 
-export async function batchSummarize(
+async function summarizeChunk(
   articles: NewsDataArticle[]
 ): Promise<BatchSummaryItem[]> {
   const articleList = articles
@@ -58,7 +58,6 @@ article_id: ${a.article_id}
   const data = await res.json();
   const text = data.choices?.[0]?.message?.content ?? "";
 
-  // JSON部分を抽出（```json...```で囲まれている場合に対応）
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
     throw new Error(`No JSON array in response: ${text.slice(0, 200)}`);
@@ -69,6 +68,23 @@ article_id: ${a.article_id}
     throw new Error(`Expected array, got: ${JSON.stringify(parsed).slice(0, 200)}`);
   }
   return parsed;
+}
+
+const CHUNK_SIZE = 4;
+
+export async function batchSummarize(
+  articles: NewsDataArticle[]
+): Promise<BatchSummaryItem[]> {
+  // 4記事ずつバッチ分割して並列実行（GitHub Models 8000トークン制限対策）
+  const chunks: NewsDataArticle[][] = [];
+  for (let i = 0; i < articles.length; i += CHUNK_SIZE) {
+    chunks.push(articles.slice(i, i + CHUNK_SIZE));
+  }
+
+  const results = await Promise.all(
+    chunks.map((chunk) => summarizeChunk(chunk).catch(() => [] as BatchSummaryItem[]))
+  );
+  return results.flat();
 }
 
 // --- 予測検証 ---
