@@ -20,28 +20,32 @@ export default function ArticleCard({ article, date }: Props) {
   const impact = IMPACT_LEVELS[article.impact];
   const timeframe = TIMEFRAMES[article.timeframe];
 
+  async function fetchAnalysis() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ articleId: article.id, date }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "分析に失敗しました");
+      setAnalysis(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleExpand() {
     const next = !expanded;
     setExpanded(next);
 
     // 展開時、分析データがなければ取得
     if (next && !analysis && !loading) {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ articleId: article.id, date }),
-        });
-        if (!res.ok) throw new Error("分析に失敗しました");
-        const data = await res.json();
-        setAnalysis(data);
-      } catch (e) {
-        setError(String(e));
-      } finally {
-        setLoading(false);
-      }
+      fetchAnalysis();
     }
   }
 
@@ -137,7 +141,15 @@ export default function ArticleCard({ article, date }: Props) {
             </div>
           )}
           {error && (
-            <div className="py-4 text-center text-xs text-red-400">{error}</div>
+            <div className="py-4 text-center">
+              <p className="text-xs text-red-400 mb-2">{error}</p>
+              <button
+                onClick={fetchAnalysis}
+                className="px-3 py-1 text-xs rounded bg-[var(--surface-2)] text-[var(--muted)] hover:text-[#E2E8F0] transition-colors"
+              >
+                再試行
+              </button>
+            </div>
           )}
           {analysis && <AnalystTabs analysis={analysis} />}
         </div>
