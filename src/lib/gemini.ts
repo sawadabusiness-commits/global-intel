@@ -2,8 +2,7 @@ import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT } from "./prompts";
 import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe } from "./types";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const PRIMARY_MODEL = "gemini-2.5-flash";
-const FALLBACK_MODEL = "gemini-2.0-flash";
+const MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.0-flash"];
 
 async function callGeminiWithModel(
   model: string,
@@ -35,18 +34,21 @@ async function callGeminiWithModel(
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 }
 
-// 2.5 Flash → 429なら 2.0 Flash にフォールバック
+// 3 Flash → 2.5 Flash → 2.0 Flash の順でフォールバック
 async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
-  try {
-    return await callGeminiWithModel(PRIMARY_MODEL, prompt, maxTokens);
-  } catch (e) {
-    const msg = String(e);
-    if (msg.includes("429")) {
-      console.log(`${PRIMARY_MODEL} rate limited, falling back to ${FALLBACK_MODEL}`);
-      return await callGeminiWithModel(FALLBACK_MODEL, prompt, maxTokens);
+  for (let i = 0; i < MODELS.length; i++) {
+    try {
+      return await callGeminiWithModel(MODELS[i], prompt, maxTokens);
+    } catch (e) {
+      const msg = String(e);
+      if (msg.includes("429") && i < MODELS.length - 1) {
+        console.log(`${MODELS[i]} rate limited, falling back to ${MODELS[i + 1]}`);
+        continue;
+      }
+      throw e;
     }
-    throw e;
   }
+  throw new Error("All Gemini models failed");
 }
 
 // --- Cron用: 複数記事を一括で軽量分析 ---
