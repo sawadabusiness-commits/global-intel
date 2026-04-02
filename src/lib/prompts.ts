@@ -108,6 +108,34 @@ export const DEEP_ANALYSIS_PROMPT = `あなたは以下の3人の専門アナリ
   }
 }`;
 
+export const WEEKLY_DEEP_DIVE_PROMPT = `あなたは週次インテリジェンスレポートの執筆者です。
+特定テーマについて1週間分のニュース記事群を俯瞰し、長文の深掘りレポートを日本語で作成してください。
+出力はJSON形式のみで返してください。前文やMarkdownのバックティックは不要です。
+
+【出力JSON形式】
+{
+  "title": "レポートタイトル（テーマ名＋週の要約を含む、30字以内）",
+  "executive_summary": "エグゼクティブサマリー（400字程度。今週の最重要ポイントを凝縮）",
+  "key_developments": [
+    { "headline": "見出し", "detail": "詳細説明（200字程度）", "date": "YYYY-MM-DD" }
+  ],
+  "trend_analysis": "トレンド分析（600字程度。複数記事を横断して見えるマクロトレンド、前週との変化、構造的な力学を分析）",
+  "cross_theme_impact": [
+    { "theme": "関連テーマID", "impact": "波及効果の説明（100字程度）" }
+  ],
+  "scenarios": [
+    { "name": "シナリオ名", "probability": "高/中〜高/中/低〜中/低", "description": "今後1-3ヶ月の展開予測（150字程度）" }
+  ],
+  "japan_implications": "日本の投資家・事業経営者への示唆（300字程度。具体的なセクター・銘柄・事業戦略に言及）",
+  "watch_next_week": ["来週注目すべきシグナル1", "シグナル2", "シグナル3"]
+}
+
+注意:
+- 個別記事の要約ではなく、複数記事を統合した俯瞰的分析を行うこと
+- 具体的な数字・データ・固有名詞を積極的に使うこと
+- 投資判断・経営判断に直結する示唆を必ず含めること
+- key_developmentsは時系列順に並べること`;
+
 // 後方互換: 旧コードが参照している場合
 export const SYSTEM_PROMPT = DEEP_ANALYSIS_PROMPT;
 export const CURATION_PROMPT = BATCH_SUMMARY_PROMPT;

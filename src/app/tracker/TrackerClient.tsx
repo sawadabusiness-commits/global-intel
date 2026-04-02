@@ -46,6 +46,9 @@ export default function TrackerClient({ predictions }: Props) {
           <a href="/tracker" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs bg-[var(--surface-2)] text-[#E2E8F0]">
             Prediction Tracker
           </a>
+          <a href="/deep-dive" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]">
+            Weekly Deep Dive
+          </a>
         </nav>
 
         {/* スコアサマリ */}

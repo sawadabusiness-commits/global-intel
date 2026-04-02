@@ -82,6 +82,9 @@ export default function Dashboard({ articles, date }: Props) {
           <a href="/tracker" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]">
             Prediction Tracker
           </a>
+          <a href="/deep-dive" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]">
+            Weekly Deep Dive
+          </a>
         </nav>
 
         <h3 className="text-[10px] font-mono text-[var(--muted)] uppercase tracking-wider mb-3">

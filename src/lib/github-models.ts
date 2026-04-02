@@ -1,5 +1,5 @@
-import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT } from "./prompts";
-import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus } from "./types";
+import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT } from "./prompts";
+import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport } from "./types";
 import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
@@ -137,6 +137,51 @@ ${prediction.ai_scenarios.map((s, i) => `${i + 1}. ${s.name}（${s.probability}�
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error(`No JSON in verification response: ${text.slice(0, 200)}`);
+  }
+  return JSON.parse(jsonMatch[0]);
+}
+
+// --- 週次ディープダイブ ---
+export async function generateWeeklyDeepDive(
+  themeLabelJa: string,
+  articles: { title_ja: string; summary_ja: string; published: string }[]
+): Promise<WeeklyReport> {
+  const articleList = articles
+    .map(
+      (a, i) =>
+        `--- 記事${i + 1} ---\n日付: ${a.published}\nタイトル: ${a.title_ja}\n要約: ${a.summary_ja}`
+    )
+    .join("\n\n");
+
+  const userPrompt = `テーマ「${themeLabelJa}」の今週の記事${articles.length}件を分析し、週次ディープダイブレポートを作成してください:\n\n${articleList}`;
+
+  const res = await fetch(GITHUB_MODELS_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: WEEKLY_DEEP_DIVE_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 8192,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`GitHub Models error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error(`No JSON in weekly deep dive response: ${text.slice(0, 200)}`);
   }
   return JSON.parse(jsonMatch[0]);
 }

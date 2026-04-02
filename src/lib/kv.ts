@@ -1,5 +1,5 @@
 import { kv } from "@vercel/kv";
-import type { AnalyzedArticle, Prediction } from "./types";
+import type { AnalyzedArticle, Prediction, WeeklyDeepDive } from "./types";
 
 // --- 記事 ---
 export async function saveArticles(date: string, articles: AnalyzedArticle[]) {
@@ -46,4 +46,20 @@ export async function updatePrediction(id: string, updates: Partial<Prediction>)
   const updated = { ...existing, ...updates };
   await kv.set(`predictions:${id}`, JSON.stringify(updated));
   return updated;
+}
+
+// --- 週次ディープダイブ ---
+export async function saveWeeklyDeepDive(deepDive: WeeklyDeepDive) {
+  await kv.set(`deep_dive:${deepDive.week_end}`, JSON.stringify(deepDive));
+  await kv.set("deep_dive:latest", deepDive.week_end);
+}
+
+export async function getWeeklyDeepDive(weekEnd: string): Promise<WeeklyDeepDive | null> {
+  const data = await kv.get<string>(`deep_dive:${weekEnd}`);
+  if (!data) return null;
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
+
+export async function getLatestDeepDiveDate(): Promise<string | null> {
+  return kv.get<string>("deep_dive:latest");
 }

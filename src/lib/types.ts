@@ -160,8 +160,33 @@ export interface Prediction {
   lessons: string | null;
 }
 
+// --- 週次ディープダイブ ---
+export interface WeeklyDeepDive {
+  id: string;
+  week_start: string;
+  week_end: string;
+  theme: ThemeId;
+  theme_label_ja: string;
+  article_count: number;
+  report: WeeklyReport;
+  created_at: string;
+}
+
+export interface WeeklyReport {
+  title: string;
+  executive_summary: string;
+  key_developments: { headline: string; detail: string; date: string }[];
+  trend_analysis: string;
+  cross_theme_impact: { theme: ThemeId; impact: string }[];
+  scenarios: { name: string; probability: string; description: string }[];
+  japan_implications: string;
+  watch_next_week: string[];
+}
+
 // --- Vercel KV のキー設計 ---
 // articles:{date}        → AnalyzedArticle[]
 // predictions:{id}       → Prediction
 // predictions:index      → string[]
+// deep_dive:{date}       → WeeklyDeepDive
+// deep_dive:latest       → string (date)
 // meta:last_fetch        → string
