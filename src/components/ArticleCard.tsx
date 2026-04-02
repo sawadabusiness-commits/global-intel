@@ -8,9 +8,11 @@ import AnalystTabs from "./AnalystTabs";
 interface Props {
   article: AnalyzedArticle;
   date: string;
+  isRead?: boolean;
+  onRead?: (id: string) => void;
 }
 
-export default function ArticleCard({ article, date }: Props) {
+export default function ArticleCard({ article, date, isRead, onRead }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [analysis, setAnalysis] = useState<GeminiAnalysis | null>(article.analysis);
   const [loading, setLoading] = useState(false);
@@ -43,9 +45,11 @@ export default function ArticleCard({ article, date }: Props) {
     const next = !expanded;
     setExpanded(next);
 
-    // 展開時、分析データがなければ取得
-    if (next && !analysis && !loading) {
-      fetchAnalysis();
+    if (next) {
+      // 既読マーク
+      if (!isRead && onRead) onRead(article.id);
+      // 展開時、分析データがなければ取得
+      if (!analysis && !loading) fetchAnalysis();
     }
   }
 
@@ -55,6 +59,7 @@ export default function ArticleCard({ article, date }: Props) {
       style={{
         background: "var(--surface)",
         border: `1px solid ${expanded ? theme?.color + "40" : "var(--border)"}`,
+        opacity: isRead && !expanded ? 0.5 : 1,
       }}
       onClick={handleExpand}
     >

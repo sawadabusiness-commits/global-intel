@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { AnalyzedArticle, ThemeId } from "@/lib/types";
 import { THEMES } from "@/lib/themes";
 import ThemeFilter from "./ThemeFilter";
@@ -11,22 +11,57 @@ interface Props {
   date: string;
 }
 
+function getReadIds(date: string): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(`read:${date}`);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch { return new Set(); }
+}
+
+function saveReadIds(date: string, ids: Set<string>) {
+  localStorage.setItem(`read:${date}`, JSON.stringify([...ids]));
+}
+
 export default function Dashboard({ articles, date }: Props) {
   const [selectedTheme, setSelectedTheme] = useState<ThemeId | null>(null);
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [hideRead, setHideRead] = useState(false);
 
-  const filtered = selectedTheme
-    ? articles.filter(
-        (a) => a.primary_theme === selectedTheme || a.cross_themes.includes(selectedTheme)
-      )
-    : articles;
+  useEffect(() => {
+    setReadIds(getReadIds(date));
+  }, [date]);
 
-  // テーマ別記事数
-  const themeCounts = THEMES.map((t) => ({
-    ...t,
-    count: articles.filter(
+  const markAsRead = useCallback((id: string) => {
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      saveReadIds(date, next);
+      return next;
+    });
+  }, [date]);
+
+  const filtered = articles.filter((a) => {
+    if (selectedTheme && a.primary_theme !== selectedTheme && !a.cross_themes.includes(selectedTheme)) {
+      return false;
+    }
+    if (hideRead && readIds.has(a.id)) return false;
+    return true;
+  });
+
+  const unreadCount = articles.filter((a) => !readIds.has(a.id)).length;
+
+  // テーマ別未読数
+  const themeCounts = THEMES.map((t) => {
+    const themeArticles = articles.filter(
       (a) => a.primary_theme === t.id || a.cross_themes.includes(t.id)
-    ).length,
-  }));
+    );
+    return {
+      ...t,
+      total: themeArticles.length,
+      unread: themeArticles.filter((a) => !readIds.has(a.id)).length,
+    };
+  });
 
   return (
     <div className="flex min-h-screen">
@@ -62,15 +97,36 @@ export default function Dashboard({ articles, date }: Props) {
             >
               <span style={{ color: t.color }}>{t.icon}</span>
               <span className="flex-1">{t.labelJa}</span>
-              <span className="font-mono text-[10px]">{t.count}</span>
+              <span className="font-mono text-[10px]">
+                {t.unread > 0 ? (
+                  <span style={{ color: t.color }}>{t.unread}</span>
+                ) : (
+                  <span style={{ opacity: 0.3 }}>{t.total}</span>
+                )}
+              </span>
             </button>
           ))}
         </div>
 
-        <div className="mt-auto pt-6">
+        <div className="mt-auto pt-6 space-y-2">
+          <button
+            onClick={() => setHideRead(!hideRead)}
+            className="w-full px-3 py-2 rounded-lg text-[10px] font-mono transition-all"
+            style={{
+              background: hideRead ? "var(--surface-2)" : "transparent",
+              color: hideRead ? "#E2E8F0" : "var(--muted)",
+              border: `1px solid ${hideRead ? "var(--border)" : "transparent"}`,
+            }}
+          >
+            {hideRead ? "全記事を表示" : "既読を非表示"}
+          </button>
           <div className="p-3 rounded-lg" style={{ background: "var(--surface-2)" }}>
             <p className="text-[10px] font-mono text-[var(--muted)]">
-              {articles.length} articles analyzed
+              {unreadCount > 0 ? (
+                <><span className="text-[#38BDF8]">{unreadCount}</span> / {articles.length} 未読</>
+              ) : (
+                <>{articles.length} articles - all read</>
+              )}
             </p>
           </div>
         </div>
@@ -94,13 +150,28 @@ export default function Dashboard({ articles, date }: Props) {
         {/* 記事一覧 */}
         {filtered.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-[var(--muted)] text-sm">記事がありません</p>
-            <p className="text-[var(--muted)] text-xs mt-1">Cronジョブ実行後に表示されます</p>
+            <p className="text-[var(--muted)] text-sm">
+              {hideRead && articles.length > 0 ? "未読の記事はありません" : "記事がありません"}
+            </p>
+            {hideRead && articles.length > 0 && (
+              <button
+                onClick={() => setHideRead(false)}
+                className="text-[10px] text-[#38BDF8] mt-2 hover:text-[#7DD3FC]"
+              >
+                全記事を表示
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
             {filtered.map((article) => (
-              <ArticleCard key={article.id} article={article} date={date} />
+              <ArticleCard
+                key={article.id}
+                article={article}
+                date={date}
+                isRead={readIds.has(article.id)}
+                onRead={markAsRead}
+              />
             ))}
           </div>
         )}
