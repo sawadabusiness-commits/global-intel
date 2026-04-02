@@ -78,34 +78,6 @@ export async function GET(req: NextRequest) {
     result.data_sources = sourceCounts;
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
-    // ACLED APIエンドポイントデバッグ
-    try {
-      const tokenRes = await fetch("https://acleddata.com/oauth/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          username: process.env.ACLED_EMAIL!,
-          password: process.env.ACLED_PASSWORD!,
-          grant_type: "password",
-          client_id: "acled",
-        }),
-        signal: AbortSignal.timeout(10000),
-      });
-      const tokenData = await tokenRes.json();
-      const token = tokenData.access_token;
-      // データ取得テスト
-      const dataRes = await fetch("https://acleddata.com/api/acled/read?_format=json&limit=1", {
-        headers: { "Authorization": `Bearer ${token}` },
-        signal: AbortSignal.timeout(10000),
-      });
-      result.acled_debug = {
-        token_ok: !!token,
-        data_status: dataRes.status,
-        data_response: (await dataRes.text()).slice(0, 500),
-      };
-    } catch (e) {
-      result.acled_debug = { error: String(e) };
-    }
 
     // 2. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
     const latestDate = await getLatestDate();
