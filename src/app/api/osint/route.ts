@@ -78,18 +78,17 @@ export async function GET(req: NextRequest) {
     result.data_sources = sourceCounts;
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
-    // e-Stat デバッグ: フィルタなしでデータ構造確認
+    // e-Stat デバッグ: メタ情報でカテゴリコード確認
     try {
       const estatKey = process.env.ESTAT_API_KEY;
-      const testUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${estatKey}&statsDataId=0003421913&limit=3&metaGetFlg=N&sectionHeaderFlg=1`;
-      const testRes = await fetch(testUrl, { signal: AbortSignal.timeout(10000) });
-      const testData = await testRes.json();
-      const testValues = testData?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-      result.estat_debug = {
-        api_status: testData?.GET_STATS_DATA?.RESULT?.STATUS,
-        value_count: Array.isArray(testValues) ? testValues.length : 0,
-        sample: Array.isArray(testValues) ? testValues.slice(0, 3) : null,
-      };
+      const metaUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getMetaInfo?appId=${estatKey}&statsDataId=0003421913`;
+      const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(10000) });
+      const metaData = await metaRes.json();
+      const classObj = metaData?.GET_META_INFO?.METADATA_INF?.CLASS_INF?.CLASS_OBJ;
+      result.estat_debug = Array.isArray(classObj) ? classObj.map((c: any) => ({
+        id: c["@id"], name: c["@name"],
+        first5: (Array.isArray(c.CLASS) ? c.CLASS : [c.CLASS]).filter(Boolean).slice(0, 5).map((cl: any) => `${cl["@code"]}:${cl["@name"]}`),
+      })) : "no_class_obj";
     } catch (e) {
       result.estat_debug = { error: String(e) };
     }
