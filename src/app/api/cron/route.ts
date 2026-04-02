@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
-import { batchSummarize } from "@/lib/github-models";
-import { saveArticles, setLatestDate } from "@/lib/kv";
+import { batchSummarize, verifyPrediction } from "@/lib/github-models";
+import { saveArticles, setLatestDate, getAllPredictions, updatePrediction } from "@/lib/kv";
 import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -86,11 +86,43 @@ export async function GET(req: NextRequest) {
     await saveArticles(today, analyzed);
     await setLatestDate(today);
 
+    // 4. 予測検証（6ヶ月経過した未検証の予測を最大3件）
+    let verified = 0;
+    try {
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      const cutoff = sixMonthsAgo.toISOString().split("T")[0];
+
+      const predictions = await getAllPredictions();
+      const due = predictions.filter(
+        (p) => p.status === "ongoing" && p.date <= cutoff
+      ).slice(0, 3);
+
+      for (const p of due) {
+        try {
+          const result = await verifyPrediction(p);
+          await updatePrediction(p.id, {
+            status: result.status,
+            actual_outcome: result.actual_outcome,
+            score: result.score,
+            lessons: result.lessons,
+            verification_date: today,
+          });
+          verified++;
+        } catch (e) {
+          console.error(`Verification failed for ${p.id}:`, e);
+        }
+      }
+    } catch (e) {
+      console.error("Verification step error:", e);
+    }
+
     return NextResponse.json({
       ok: true,
       date: today,
       fetched: picked.length,
       analyzed: analyzed.length,
+      verified,
       model: "gpt-4o-mini (GitHub Models)",
     });
   } catch (e) {
