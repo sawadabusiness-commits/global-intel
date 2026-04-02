@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
     // e-Stat デバッグ: 消費者物価指数(CPI)の統計表を検索
     try {
       const estatKey = process.env.ESTAT_API_KEY;
-      const searchUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${estatKey}&searchWord=${encodeURIComponent("消費者物価指数 総合 全国")}&limit=5&statsField=0020`;
+      const searchUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${estatKey}&searchWord=${encodeURIComponent("消費者物価指数")}&limit=10`;
       const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(10000) });
       const searchData = await searchRes.json();
       const tables = searchData?.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
