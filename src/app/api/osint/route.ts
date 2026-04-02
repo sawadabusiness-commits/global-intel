@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
     // 3. アナリスト5: 異常値があれば独自記事生成（~10秒）
     if (anomalies.length > 0) {
       try {
-        const novelArticle = await generateNovelArticle(anomalies, gdeltData);
+        const novelArticle = await generateNovelArticle(anomalies, gdeltData, dataPoints);
         if (novelArticle) {
           await saveOsintArticles(today, [novelArticle]);
           result.novel_article = novelArticle.title;

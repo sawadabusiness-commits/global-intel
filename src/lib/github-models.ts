@@ -277,7 +277,8 @@ export async function batchVerifyWithOsint(
 // --- アナリスト5: OSINT独自記事生成 ---
 export async function generateNovelArticle(
   anomalies: OsintAnomaly[],
-  gdeltData: GdeltToneData[]
+  gdeltData: GdeltToneData[],
+  dataPoints: OsintDataPoint[] = []
 ): Promise<OsintArticle | null> {
   if (anomalies.length === 0) return null;
 
@@ -285,11 +286,26 @@ export async function generateNovelArticle(
     `テーマ: ${a.theme} | ${a.detail} | 深刻度: ${a.severity}`
   ).join("\n");
 
-  const contextText = gdeltData.map((d) =>
-    `テーマ: ${d.theme} | トーン推移(14日): ${d.daily_tone.slice(-7).map((t) => t.tone.toFixed(1)).join(" → ")} | 異常: ${d.is_anomaly ? "YES" : "NO"}`
-  ).join("\n");
+  // 異常値に関連するソースのデータポイントを添付（AIが具体的な事実を引用できるように）
+  const relevantSources = new Set(anomalies.map((a) => a.source));
+  const relevantPoints = dataPoints.filter((dp) => relevantSources.has(dp.source));
+  const dataText = relevantPoints.length > 0
+    ? relevantPoints.map((dp) =>
+        `${dp.source} | ${dp.label}: ${dp.value} ${dp.unit ?? ""}${dp.country ? ` (${dp.country})` : ""} | ${dp.date}`
+      ).join("\n")
+    : "";
 
-  const userPrompt = `【検出された異常値】\n${anomalyText}\n\n【GDELTトーンデータ】\n${contextText}`;
+  const contextText = gdeltData.length > 0
+    ? gdeltData.map((d) =>
+        `テーマ: ${d.theme} | トーン推移(14日): ${d.daily_tone.slice(-7).map((t) => t.tone.toFixed(1)).join(" → ")} | 異常: ${d.is_anomaly ? "YES" : "NO"}`
+      ).join("\n")
+    : "(GDELTデータなし)";
+
+  let userPrompt = `【検出された異常値】\n${anomalyText}`;
+  if (dataText) {
+    userPrompt += `\n\n【関連する生データ（具体的な数値・地名を記事に必ず引用すること）】\n${dataText}`;
+  }
+  userPrompt += `\n\n【GDELTトーンデータ】\n${contextText}`;
 
   const res = await fetch(GITHUB_MODELS_URL, {
     method: "POST",
