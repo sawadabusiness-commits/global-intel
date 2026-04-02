@@ -78,17 +78,18 @@ export async function GET(req: NextRequest) {
     result.data_sources = sourceCounts;
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
-    // e-Stat デバッグ: メタ情報でカテゴリコード確認
+    // e-Stat デバッグ: 消費者物価指数(CPI)の統計表を検索
     try {
       const estatKey = process.env.ESTAT_API_KEY;
-      const metaUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getMetaInfo?appId=${estatKey}&statsDataId=0003421913`;
-      const metaRes = await fetch(metaUrl, { signal: AbortSignal.timeout(10000) });
-      const metaData = await metaRes.json();
-      const classObj = metaData?.GET_META_INFO?.METADATA_INF?.CLASS_INF?.CLASS_OBJ;
-      result.estat_debug = Array.isArray(classObj) ? classObj.map((c: any) => ({
-        id: c["@id"], name: c["@name"],
-        first5: (Array.isArray(c.CLASS) ? c.CLASS : [c.CLASS]).filter(Boolean).slice(0, 5).map((cl: any) => `${cl["@code"]}:${cl["@name"]}`),
-      })) : "no_class_obj";
+      const searchUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${estatKey}&searchWord=${encodeURIComponent("消費者物価指数 総合 全国")}&limit=5&statsField=0020`;
+      const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(10000) });
+      const searchData = await searchRes.json();
+      const tables = searchData?.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
+      result.estat_debug = (Array.isArray(tables) ? tables : [tables]).filter(Boolean).slice(0, 5).map((t: any) => ({
+        id: t["@id"],
+        title: t.TITLE?.["$"] ?? t.TITLE,
+        survey: t.STATISTICS_NAME,
+      }));
     } catch (e) {
       result.estat_debug = { error: String(e) };
     }
