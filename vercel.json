@@ -5,8 +5,8 @@
       "schedule": "0 19 * * *"
     },
     {
-      "path": "/api/weekly-deep-dive",
-      "schedule": "0 20 * * 5"
+      "path": "/api/osint",
+      "schedule": "0 20 * * *"
     }
   ]
 }

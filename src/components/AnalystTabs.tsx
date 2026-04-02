@@ -2,19 +2,20 @@
 
 import { useState } from "react";
 import { THEME_MAP, PROBABILITY_COLORS, TIMEFRAMES } from "@/lib/themes";
-import type { GeminiAnalysis, Probability } from "@/lib/types";
+import type { GeminiAnalysis, Probability, OsintVerification } from "@/lib/types";
 
 interface Props {
   analysis: GeminiAnalysis;
   articleId?: string;
   articleTitle?: string;
+  osintVerification?: OsintVerification;
 }
 
-type Tab = "structural" | "devils" | "historical";
+type Tab = "structural" | "devils" | "historical" | "osint";
 
 const CONFIDENCE_OPTIONS: Probability[] = ["高", "中〜高", "中", "低〜中", "低"];
 
-export default function AnalystTabs({ analysis, articleId, articleTitle }: Props) {
+export default function AnalystTabs({ analysis, articleId, articleTitle, osintVerification }: Props) {
   const [tab, setTab] = useState<Tab>("structural");
   const [recording, setRecording] = useState<string | null>(null); // シナリオ名
   const [confidence, setConfidence] = useState<Probability>("中");
@@ -26,6 +27,7 @@ export default function AnalystTabs({ analysis, articleId, articleTitle }: Props
     { id: "structural", label: "Structural", labelJa: "構造分析" },
     { id: "devils", label: "Devil's Advocate", labelJa: "反論" },
     { id: "historical", label: "Historical", labelJa: "歴史検証" },
+    ...(osintVerification ? [{ id: "osint" as Tab, label: "OSINT", labelJa: "OSINT検証" }] : []),
   ];
 
   async function savePrediction(scenarioName: string) {
@@ -279,6 +281,40 @@ export default function AnalystTabs({ analysis, articleId, articleTitle }: Props
           <div className="p-3 rounded-lg" style={{ background: "var(--surface-2)" }}>
             <h4 className="text-xs font-mono text-[#38BDF8] mb-1">Probability Correction</h4>
             <p className="text-xs text-[var(--muted)]">{analysis.analyst3.probability_correction}</p>
+          </div>
+        </div>
+      )}
+
+      {tab === "osint" && osintVerification && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg" style={{
+            background: osintVerification.verdict === "supported" ? "#10B98110" : osintVerification.verdict === "contradicted" ? "#EF444410" : "#6366F110",
+            border: `1px solid ${osintVerification.verdict === "supported" ? "#10B98130" : osintVerification.verdict === "contradicted" ? "#EF444430" : "#6366F130"}`,
+          }}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium" style={{
+                color: osintVerification.verdict === "supported" ? "#10B981" : osintVerification.verdict === "contradicted" ? "#EF4444" : "#6366F1",
+              }}>
+                {osintVerification.verdict === "supported" ? "データで裏付け" : osintVerification.verdict === "contradicted" ? "データと矛盾" : "検証不能"}
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: "var(--surface)", color: "var(--muted)" }}>
+                確信度: {osintVerification.confidence}
+              </span>
+            </div>
+            <p className="text-xs text-[var(--muted)] leading-relaxed">{osintVerification.evidence}</p>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-mono text-[var(--muted)] mb-2 uppercase tracking-wider">
+              Referenced Data Points
+            </h4>
+            <ul className="space-y-1">
+              {osintVerification.data_points.map((dp, i) => (
+                <li key={i} className="text-xs text-[var(--muted)] flex items-start gap-2">
+                  <span className="text-[#22D3EE] mt-0.5">▸</span> {dp}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}

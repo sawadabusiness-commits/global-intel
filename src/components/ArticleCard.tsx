@@ -2,17 +2,24 @@
 
 import { useState } from "react";
 import { THEME_MAP, IMPACT_LEVELS, TIMEFRAMES } from "@/lib/themes";
-import type { AnalyzedArticle, GeminiAnalysis } from "@/lib/types";
+import type { AnalyzedArticle, GeminiAnalysis, OsintVerification } from "@/lib/types";
 import AnalystTabs from "./AnalystTabs";
+
+const VERDICT_STYLES = {
+  supported: { label: "OSINT裏付け", color: "#10B981" },
+  contradicted: { label: "OSINT矛盾", color: "#EF4444" },
+  unverifiable: { label: "OSINT検証不能", color: "#6366F1" },
+} as const;
 
 interface Props {
   article: AnalyzedArticle;
   date: string;
   isRead?: boolean;
   onRead?: (id: string) => void;
+  osintVerification?: OsintVerification;
 }
 
-export default function ArticleCard({ article, date, isRead, onRead }: Props) {
+export default function ArticleCard({ article, date, isRead, onRead, osintVerification }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [analysis, setAnalysis] = useState<GeminiAnalysis | null>(article.analysis);
   const [loading, setLoading] = useState(false);
@@ -99,6 +106,18 @@ export default function ArticleCard({ article, date, isRead, onRead }: Props) {
             </span>
           );
         })}
+        {osintVerification && (
+          <span
+            className="px-2 py-0.5 rounded-full text-[10px] font-mono"
+            style={{
+              background: VERDICT_STYLES[osintVerification.verdict].color + "20",
+              color: VERDICT_STYLES[osintVerification.verdict].color,
+            }}
+            title={osintVerification.evidence}
+          >
+            {VERDICT_STYLES[osintVerification.verdict].label}
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-2">
           <span
             className="px-2 py-0.5 rounded-full text-[10px] font-mono"
@@ -156,7 +175,7 @@ export default function ArticleCard({ article, date, isRead, onRead }: Props) {
               </button>
             </div>
           )}
-          {analysis && <AnalystTabs analysis={analysis} articleId={article.id} articleTitle={article.title_ja} />}
+          {analysis && <AnalystTabs analysis={analysis} articleId={article.id} articleTitle={article.title_ja} osintVerification={osintVerification} />}
         </div>
       )}
     </article>

@@ -1,5 +1,5 @@
 import { kv } from "@vercel/kv";
-import type { AnalyzedArticle, Prediction, WeeklyDeepDive } from "./types";
+import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle } from "./types";
 
 // --- 記事 ---
 export async function saveArticles(date: string, articles: AnalyzedArticle[]) {
@@ -62,4 +62,40 @@ export async function getWeeklyDeepDive(weekEnd: string): Promise<WeeklyDeepDive
 
 export async function getLatestDeepDiveDate(): Promise<string | null> {
   return kv.get<string>("deep_dive:latest");
+}
+
+// --- OSINT ---
+export async function saveOsintSnapshot(snapshot: OsintSnapshot) {
+  await kv.set(`osint:${snapshot.date}`, JSON.stringify(snapshot));
+  await kv.set("osint:latest", snapshot.date);
+}
+
+export async function getOsintSnapshot(date: string): Promise<OsintSnapshot | null> {
+  const data = await kv.get<string>(`osint:${date}`);
+  if (!data) return null;
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
+
+export async function getLatestOsintDate(): Promise<string | null> {
+  return kv.get<string>("osint:latest");
+}
+
+export async function saveOsintVerifications(date: string, verifications: OsintVerification[]) {
+  await kv.set(`osint_verif:${date}`, JSON.stringify(verifications));
+}
+
+export async function getOsintVerifications(date: string): Promise<OsintVerification[]> {
+  const data = await kv.get<string>(`osint_verif:${date}`);
+  if (!data) return [];
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
+
+export async function saveOsintArticles(date: string, articles: OsintArticle[]) {
+  await kv.set(`osint_articles:${date}`, JSON.stringify(articles));
+}
+
+export async function getOsintArticles(date: string): Promise<OsintArticle[]> {
+  const data = await kv.get<string>(`osint_articles:${date}`);
+  if (!data) return [];
+  return typeof data === "string" ? JSON.parse(data) : data;
 }

@@ -183,10 +183,61 @@ export interface WeeklyReport {
   watch_next_week: string[];
 }
 
+// --- OSINT ---
+export interface GdeltToneData {
+  theme: ThemeId;
+  query: string;
+  daily_tone: { date: string; tone: number }[];
+  latest_tone: number;
+  avg_tone_7d: number;
+  tone_change_pct: number;
+  is_anomaly: boolean;
+}
+
+export interface OsintAnomaly {
+  theme: ThemeId;
+  type: "tone_shift";
+  detail: string;
+  severity: "high" | "medium";
+  current_value: number;
+  baseline_value: number;
+  change_pct: number;
+}
+
+export interface OsintSnapshot {
+  date: string;
+  gdelt: GdeltToneData[];
+  anomalies: OsintAnomaly[];
+  created_at: string;
+}
+
+export interface OsintVerification {
+  article_id: string;
+  verdict: "supported" | "contradicted" | "unverifiable";
+  evidence: string;
+  data_points: string[];
+  confidence: string;
+}
+
+export interface OsintArticle {
+  id: string;
+  title: string;
+  body: string;
+  theme: ThemeId;
+  data_sources: string[];
+  anomalies_referenced: string[];
+  confidence: string;
+  generated_at: string;
+}
+
 // --- Vercel KV のキー設計 ---
 // articles:{date}        → AnalyzedArticle[]
 // predictions:{id}       → Prediction
 // predictions:index      → string[]
 // deep_dive:{date}       → WeeklyDeepDive
 // deep_dive:latest       → string (date)
+// osint:{date}           → OsintSnapshot
+// osint:latest           → string (date)
+// osint_verif:{date}     → OsintVerification[]
+// osint_articles:{date}  → OsintArticle[]
 // meta:last_fetch        → string

@@ -1,5 +1,5 @@
-import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT } from "./prompts";
-import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport } from "./types";
+import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT } from "./prompts";
+import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData } from "./types";
 import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
@@ -184,6 +184,100 @@ export async function generateWeeklyDeepDive(
     throw new Error(`No JSON in weekly deep dive response: ${text.slice(0, 200)}`);
   }
   return JSON.parse(jsonMatch[0]);
+}
+
+// --- アナリスト4: OSINT記事検証 ---
+export async function batchVerifyWithOsint(
+  articles: { id: string; title_ja: string; summary_ja: string; primary_theme: ThemeId }[],
+  gdeltData: GdeltToneData[]
+): Promise<OsintVerification[]> {
+  const osintContext = gdeltData.map((d) =>
+    `テーマ: ${d.theme} | 最新トーン: ${d.latest_tone.toFixed(2)} | 7日平均: ${d.avg_tone_7d.toFixed(2)} | 変化: ${d.tone_change_pct > 0 ? "+" : ""}${d.tone_change_pct.toFixed(1)}% | 異常: ${d.is_anomaly ? "YES" : "NO"}`
+  ).join("\n");
+
+  const articleList = articles.map((a) =>
+    `ID: ${a.id}\nテーマ: ${a.primary_theme}\nタイトル: ${a.title_ja}\n要約: ${a.summary_ja}`
+  ).join("\n---\n");
+
+  const userPrompt = `【OSINTデータ（GDELTメディアトーン分析）】\n${osintContext}\n\n【検証対象記事】\n${articleList}`;
+
+  const res = await fetch(GITHUB_MODELS_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: ANALYST4_VERIFICATION_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 4096,
+      temperature: 0.3,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`GitHub Models error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return [];
+  return JSON.parse(jsonMatch[0]);
+}
+
+// --- アナリスト5: OSINT独自記事生成 ---
+export async function generateNovelArticle(
+  anomalies: OsintAnomaly[],
+  gdeltData: GdeltToneData[]
+): Promise<OsintArticle | null> {
+  if (anomalies.length === 0) return null;
+
+  const anomalyText = anomalies.map((a) =>
+    `テーマ: ${a.theme} | ${a.detail} | 深刻度: ${a.severity}`
+  ).join("\n");
+
+  const contextText = gdeltData.map((d) =>
+    `テーマ: ${d.theme} | トーン推移(14日): ${d.daily_tone.slice(-7).map((t) => t.tone.toFixed(1)).join(" → ")} | 異常: ${d.is_anomaly ? "YES" : "NO"}`
+  ).join("\n");
+
+  const userPrompt = `【検出された異常値】\n${anomalyText}\n\n【GDELTトーンデータ】\n${contextText}`;
+
+  const res = await fetch(GITHUB_MODELS_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: ANALYST5_NOVEL_ARTICLE_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      max_tokens: 4096,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!res.ok) return null;
+
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  const today = new Date().toISOString().split("T")[0];
+  return {
+    id: `osint-${today}-${Date.now()}`,
+    ...parsed,
+    generated_at: new Date().toISOString(),
+  };
 }
 
 // --- 深層分析（GitHub Models版、1記事ずつ並列） ---

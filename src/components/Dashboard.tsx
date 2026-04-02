@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { AnalyzedArticle, ThemeId } from "@/lib/types";
-import { THEMES } from "@/lib/themes";
+import type { AnalyzedArticle, ThemeId, OsintVerification, OsintArticle } from "@/lib/types";
+import { THEMES, THEME_MAP } from "@/lib/themes";
 import ThemeFilter from "./ThemeFilter";
 import ArticleCard from "./ArticleCard";
 
 interface Props {
   articles: AnalyzedArticle[];
   date: string;
+  osintVerifications?: OsintVerification[];
+  osintArticles?: OsintArticle[];
 }
 
 function getReadIds(date: string): Set<string> {
@@ -23,7 +25,7 @@ function saveReadIds(date: string, ids: Set<string>) {
   localStorage.setItem(`read:${date}`, JSON.stringify([...ids]));
 }
 
-export default function Dashboard({ articles, date }: Props) {
+export default function Dashboard({ articles, date, osintVerifications = [], osintArticles = [] }: Props) {
   const [selectedTheme, setSelectedTheme] = useState<ThemeId | null>(null);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [hideRead, setHideRead] = useState(false);
@@ -50,6 +52,9 @@ export default function Dashboard({ articles, date }: Props) {
   });
 
   const unreadCount = articles.filter((a) => !readIds.has(a.id)).length;
+
+  // OSINT検証マップ
+  const verificationMap = new Map(osintVerifications.map((v) => [v.article_id, v]));
 
   // テーマ別未読数
   const themeCounts = THEMES.map((t) => {
@@ -150,6 +155,46 @@ export default function Dashboard({ articles, date }: Props) {
           <ThemeFilter selected={selectedTheme} onSelect={setSelectedTheme} />
         </div>
 
+        {/* OSINT独自記事 */}
+        {osintArticles.length > 0 && !selectedTheme && (
+          <div className="mb-6">
+            <h3 className="text-xs font-mono text-[var(--muted)] uppercase tracking-wider mb-3 flex items-center gap-2">
+              <span className="text-[#22D3EE]">OSINT</span> Intelligence Articles
+            </h3>
+            <div className="space-y-3">
+              {osintArticles.map((oa) => {
+                const t = THEME_MAP[oa.theme];
+                return (
+                  <div
+                    key={oa.id}
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--surface)", border: "1px solid #22D3EE30" }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-sm mt-0.5" style={{ color: "#22D3EE" }}>OSINT</span>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-[#E2E8F0]">{oa.title}</h4>
+                        <p className="text-xs text-[var(--muted)] mt-2 leading-relaxed whitespace-pre-wrap">{oa.body}</p>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono" style={{ background: (t?.color ?? "#666") + "20", color: t?.color }}>
+                            {t?.labelJa}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono" style={{ background: "#22D3EE20", color: "#22D3EE" }}>
+                            確信度: {oa.confidence}
+                          </span>
+                          {oa.data_sources.map((ds, i) => (
+                            <span key={i} className="text-[10px] font-mono text-[var(--muted)]">{ds}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* 記事一覧 */}
         {filtered.length === 0 ? (
           <div className="text-center py-20">
@@ -174,6 +219,7 @@ export default function Dashboard({ articles, date }: Props) {
                 date={date}
                 isRead={readIds.has(article.id)}
                 onRead={markAsRead}
+                osintVerification={verificationMap.get(article.id)}
               />
             ))}
           </div>
