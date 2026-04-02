@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
-import { batchSummarize, verifyPrediction } from "@/lib/github-models";
+import { batchSummarize, batchDeepAnalyze, verifyPrediction } from "@/lib/github-models";
 import { saveArticles, setLatestDate, getAllPredictions, updatePrediction } from "@/lib/kv";
 import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
 
@@ -58,35 +58,66 @@ export async function GET(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // 3. 記事データを組み立て（深層分析は空）
+    // 3. 記事データを組み立て
     const articleMap = new Map(picked.map((a) => [a.article_id, a]));
-    const analyzed: AnalyzedArticle[] = summaries
-      .filter((s) => articleMap.has(s.article_id))
-      .map((s) => {
-        const raw = articleMap.get(s.article_id)!;
-        return {
-          id: raw.article_id,
-          title_en: raw.title,
-          title_ja: s.title_ja,
-          summary_ja: s.summary_ja,
-          source: raw.source_name,
-          url: raw.link,
-          region: (raw.country ?? []).join(", "),
-          published: raw.pubDate,
-          read_time: 3,
+    const validSummaries = summaries.filter((s) => articleMap.has(s.article_id));
+
+    // 4. 深層分析を一括実行（GitHub Models、4記事ずつ）
+    let deepResults: (import("@/lib/gemini").DeepAnalysis | null)[] = [];
+    try {
+      deepResults = await batchDeepAnalyze(
+        validSummaries.map((s) => {
+          const raw = articleMap.get(s.article_id)!;
+          return {
+            title: raw.title,
+            source: raw.source_name,
+            published: raw.pubDate,
+            region: (raw.country ?? []).join(", "),
+            summary: s.summary_ja,
+          };
+        })
+      );
+    } catch (e) {
+      console.error("Batch deep analysis failed:", e);
+      deepResults = validSummaries.map(() => null);
+    }
+
+    const analyzed: AnalyzedArticle[] = validSummaries.map((s, i) => {
+      const raw = articleMap.get(s.article_id)!;
+      const deep = deepResults[i];
+      return {
+        id: raw.article_id,
+        title_en: raw.title,
+        title_ja: s.title_ja,
+        summary_ja: s.summary_ja,
+        source: raw.source_name,
+        url: raw.link,
+        region: (raw.country ?? []).join(", "),
+        published: raw.pubDate,
+        read_time: 3,
+        primary_theme: s.primary_theme,
+        cross_themes: s.cross_themes,
+        impact: s.impact,
+        timeframe: s.timeframe,
+        analysis: deep ? {
           primary_theme: s.primary_theme,
           cross_themes: s.cross_themes,
           impact: s.impact,
           timeframe: s.timeframe,
-          analysis: null as any, // 深層分析はオンデマンドで取得
-          created_at: new Date().toISOString(),
-        };
-      });
+          title_ja: s.title_ja,
+          summary_ja: s.summary_ja,
+          ...deep,
+        } as any : null,
+        created_at: new Date().toISOString(),
+      };
+    });
 
     await saveArticles(today, analyzed);
     await setLatestDate(today);
 
-    // 4. 予測検証（6ヶ月経過した未検証の予測を最大3件）
+    const deepAnalyzed = deepResults.filter((r) => r !== null).length;
+
+    // 5. 予測検証（6ヶ月経過した未検証の予測を最大3件）
     let verified = 0;
     try {
       const sixMonthsAgo = new Date();
@@ -122,6 +153,7 @@ export async function GET(req: NextRequest) {
       date: today,
       fetched: picked.length,
       analyzed: analyzed.length,
+      deepAnalyzed,
       verified,
       model: "gpt-4o-mini (GitHub Models)",
     });

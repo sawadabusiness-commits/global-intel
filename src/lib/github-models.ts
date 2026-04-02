@@ -1,5 +1,6 @@
-import { BATCH_SUMMARY_PROMPT } from "./prompts";
+import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT } from "./prompts";
 import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus } from "./types";
+import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
 
@@ -138,4 +139,79 @@ ${prediction.ai_scenarios.map((s, i) => `${i + 1}. ${s.name}（${s.probability}�
     throw new Error(`No JSON in verification response: ${text.slice(0, 200)}`);
   }
   return JSON.parse(jsonMatch[0]);
+}
+
+// --- 深層分析（GitHub Models版） ---
+export async function batchDeepAnalyze(
+  articles: { title: string; source: string; published: string; region: string; summary: string }[]
+): Promise<(DeepAnalysis | null)[]> {
+  // 4記事ずつに分割して処理
+  const chunkSize = 4;
+  const results: (DeepAnalysis | null)[] = [];
+
+  for (let i = 0; i < articles.length; i += chunkSize) {
+    const chunk = articles.slice(i, i + chunkSize);
+    const chunkResults = await deepAnalyzeChunk(chunk);
+    results.push(...chunkResults);
+  }
+  return results;
+}
+
+async function deepAnalyzeChunk(
+  articles: { title: string; source: string; published: string; region: string; summary: string }[]
+): Promise<(DeepAnalysis | null)[]> {
+  const articleTexts = articles.map((a, i) =>
+    `=== 記事${i + 1} ===
+タイトル: ${a.title}
+ソース: ${a.source}
+日付: ${a.published}
+地域: ${a.region}
+要約: ${a.summary}`
+  ).join("\n\n");
+
+  const systemPrompt = `${DEEP_ANALYSIS_PROMPT}
+
+重要: 複数の記事が提示されます。各記事について個別に分析し、JSON配列で返してください。
+各要素は上記のJSON形式（analyst1, analyst2, analyst3を含むオブジェクト）です。
+記事の順番通りに配列に格納してください。`;
+
+  const res = await fetch(GITHUB_MODELS_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `以下の${articles.length}件の記事をそれぞれ分析してください:\n\n${articleTexts}` },
+      ],
+      max_tokens: 16384,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.error(`Deep analysis chunk failed: ${res.status} ${err.slice(0, 200)}`);
+    return articles.map(() => null);
+  }
+
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) {
+    console.error("No JSON array in deep analysis response");
+    return articles.map(() => null);
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    // 記事数に合わせて返す（足りない場合はnullで埋める）
+    return articles.map((_, i) => parsed[i] ?? null);
+  } catch {
+    console.error("Failed to parse deep analysis JSON");
+    return articles.map(() => null);
+  }
 }
