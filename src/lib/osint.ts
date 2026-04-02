@@ -259,31 +259,61 @@ export async function fetchEDINET(): Promise<OsintDataPoint[]> {
 // ============================================================
 // e-Stat — 日本政府統計（ESTAT_API_KEY 必要）
 // ============================================================
+// 消費者物価指数: statsDataId=0003421913
+// cdCat01=0001 → 総合, cdArea=00000 → 全国
+function parseEStatTime(timeCode: string): string {
+  // "2025000101" → "2025-01", "2025000601" → "2025-06"
+  if (timeCode.length >= 10) {
+    const year = timeCode.slice(0, 4);
+    const month = timeCode.slice(6, 8);
+    return `${year}-${month}`;
+  }
+  return timeCode;
+}
+
 export async function fetchEStatData(): Promise<OsintDataPoint[]> {
   const apiKey = process.env.ESTAT_API_KEY;
   if (!apiKey) return [];
 
   try {
-    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003421913&limit=12&startPosition=1&metaGetFlg=N&sectionHeaderFlg=2`;
+    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003421913&cdCat01=0001&cdArea=00000&limit=24&metaGetFlg=N&sectionHeaderFlg=1`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.error(`e-Stat API error: ${res.status}`);
+      return [];
+    }
     const data = await res.json();
+
+    // エラーチェック
+    const status = data?.GET_STATS_DATA?.RESULT?.STATUS;
+    if (status && status !== 0) {
+      console.error(`e-Stat error: ${data?.GET_STATS_DATA?.RESULT?.ERROR_MSG}`);
+      return [];
+    }
+
     const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
     if (!Array.isArray(values)) return [];
 
     const results: OsintDataPoint[] = [];
-    for (const v of values.slice(0, 12)) {
-      const value = parseFloat(v.$);
+    for (const v of values) {
+      const raw = v["$"];
+      if (raw === undefined || raw === null || raw === "-" || raw === "…") continue;
+      const value = parseFloat(String(raw));
       if (isNaN(value)) continue;
-      const timeKey = v["@time"] ?? v["@tab"] ?? "";
+      const timeCode = v["@time"] ?? "";
+      const date = parseEStatTime(String(timeCode));
       results.push({
         source: "estat", category: "price",
-        indicator: "cpi_total", label: "消費者物価指数（総合）",
-        value, date: String(timeKey), country: "JPN", unit: "指数",
+        indicator: "cpi_total", label: "消費者物価指数（総合・全国）",
+        value, date, country: "JPN", unit: "指数",
       });
     }
-    return results;
-  } catch {
+
+    // 最新12ヶ月分を返す（降順ソートして上位12件）
+    results.sort((a, b) => b.date.localeCompare(a.date));
+    return results.slice(0, 12);
+  } catch (e) {
+    console.error("e-Stat fetch error:", e);
     return [];
   }
 }
