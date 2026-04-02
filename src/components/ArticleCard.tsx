@@ -151,7 +151,7 @@ export default function ArticleCard({ article, date }: Props) {
               </button>
             </div>
           )}
-          {analysis && <AnalystTabs analysis={analysis} />}
+          {analysis && <AnalystTabs analysis={analysis} articleId={article.id} articleTitle={article.title_ja} />}
         </div>
       )}
     </article>

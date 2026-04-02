@@ -2,22 +2,56 @@
 
 import { useState } from "react";
 import { THEME_MAP, PROBABILITY_COLORS, TIMEFRAMES } from "@/lib/themes";
-import type { GeminiAnalysis } from "@/lib/types";
+import type { GeminiAnalysis, Probability } from "@/lib/types";
 
 interface Props {
   analysis: GeminiAnalysis;
+  articleId?: string;
+  articleTitle?: string;
 }
 
 type Tab = "structural" | "devils" | "historical";
 
-export default function AnalystTabs({ analysis }: Props) {
+const CONFIDENCE_OPTIONS: Probability[] = ["高", "中〜高", "中", "低〜中", "低"];
+
+export default function AnalystTabs({ analysis, articleId, articleTitle }: Props) {
   const [tab, setTab] = useState<Tab>("structural");
+  const [recording, setRecording] = useState<string | null>(null); // シナリオ名
+  const [confidence, setConfidence] = useState<Probability>("中");
+  const [reasoning, setReasoning] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<Set<string>>(new Set());
 
   const tabs: { id: Tab; label: string; labelJa: string }[] = [
     { id: "structural", label: "Structural", labelJa: "構造分析" },
     { id: "devils", label: "Devil's Advocate", labelJa: "反論" },
     { id: "historical", label: "Historical", labelJa: "歴史検証" },
   ];
+
+  async function savePrediction(scenarioName: string) {
+    if (!articleId) return;
+    setSaving(true);
+    try {
+      await fetch("/api/prediction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          article_id: articleId,
+          article_title: articleTitle || analysis.title_ja,
+          theme: analysis.primary_theme,
+          my_scenario: scenarioName,
+          my_confidence: confidence,
+          my_reasoning: reasoning,
+          ai_scenarios: analysis.analyst1.scenarios,
+        }),
+      });
+      setSaved((prev) => new Set(prev).add(scenarioName));
+      setRecording(null);
+      setReasoning("");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="mt-4">
@@ -101,6 +135,64 @@ export default function AnalystTabs({ analysis }: Props) {
                     </span>
                   </div>
                   <p className="text-xs text-[var(--muted)]">{s.description}</p>
+
+                  {/* 判断記録ボタン */}
+                  {articleId && (
+                    <div className="mt-2">
+                      {saved.has(s.name) ? (
+                        <span className="text-[10px] text-[#10B981]">記録済み</span>
+                      ) : recording === s.name ? (
+                        <div className="mt-2 p-3 rounded-lg space-y-2" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-[var(--muted)]">確信度:</span>
+                            {CONFIDENCE_OPTIONS.map((c) => (
+                              <button
+                                key={c}
+                                onClick={() => setConfidence(c)}
+                                className="px-2 py-0.5 rounded-full text-[10px] font-mono transition-all"
+                                style={{
+                                  background: confidence === c ? (PROBABILITY_COLORS[c] ?? "#666") + "30" : "transparent",
+                                  color: confidence === c ? PROBABILITY_COLORS[c] : "var(--muted)",
+                                  border: `1px solid ${confidence === c ? PROBABILITY_COLORS[c] + "50" : "var(--border)"}`,
+                                }}
+                              >
+                                {c}
+                              </button>
+                            ))}
+                          </div>
+                          <textarea
+                            value={reasoning}
+                            onChange={(e) => setReasoning(e.target.value)}
+                            placeholder="判断の根拠（任意）"
+                            className="w-full text-xs p-2 rounded bg-[var(--surface-2)] text-[#E2E8F0] border border-[var(--border)] resize-none"
+                            rows={2}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => savePrediction(s.name)}
+                              disabled={saving}
+                              className="px-3 py-1 rounded text-[10px] font-medium bg-[#38BDF8] text-[#0F172A] hover:bg-[#7DD3FC] transition-colors disabled:opacity-50"
+                            >
+                              {saving ? "保存中..." : "記録する"}
+                            </button>
+                            <button
+                              onClick={() => { setRecording(null); setReasoning(""); }}
+                              className="px-3 py-1 rounded text-[10px] text-[var(--muted)] hover:text-[#E2E8F0] transition-colors"
+                            >
+                              キャンセル
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setRecording(s.name)}
+                          className="text-[10px] text-[#38BDF8] hover:text-[#7DD3FC] transition-colors"
+                        >
+                          この展開を予想 →
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
