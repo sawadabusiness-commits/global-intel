@@ -204,11 +204,13 @@ export async function batchVerifyWithOsint(
   }
 
   const sourceLabels: Record<string, string> = {
-    dbnomics: "DBnomics（World Bank/IMF/BIS/UNCTAD）",
-    acled: "ACLED（紛争データ）",
+    dbnomics: "World Bank（マクロ経済・軍事費）",
     fred: "FRED（米国金融指標）",
     edinet: "EDINET（日本有報）",
     estat: "e-Stat（日本統計）",
+    usgs: "USGS（地震データ）",
+    fao: "FAO（食料価格指数）",
+    opensanctions: "OpenSanctions（制裁データ）",
   };
 
   let extraContext = "";

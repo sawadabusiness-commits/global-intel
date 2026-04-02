@@ -197,7 +197,7 @@ export interface GdeltToneData {
 export interface OsintAnomaly {
   theme: ThemeId;
   source: string;
-  type: "tone_shift" | "indicator_change" | "conflict_spike" | "filing_surge";
+  type: "tone_shift" | "indicator_change" | "conflict_spike" | "filing_surge" | "earthquake_spike";
   detail: string;
   severity: "high" | "medium";
   current_value: number;
@@ -206,8 +206,8 @@ export interface OsintAnomaly {
 }
 
 export interface OsintDataPoint {
-  source: "dbnomics" | "acled" | "fred" | "edinet" | "estat";
-  category: "macro" | "conflict" | "finance" | "trade" | "filing" | "price";
+  source: "dbnomics" | "fred" | "edinet" | "estat" | "usgs" | "fao" | "opensanctions";
+  category: "macro" | "conflict" | "finance" | "trade" | "filing" | "price" | "disaster" | "military" | "sanctions";
   indicator: string;
   label: string;
   value: number | null;

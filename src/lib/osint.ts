@@ -59,6 +59,9 @@ const WB_INDICATORS: { id: string; label: string; category: OsintDataPoint["cate
   { id: "FP.CPI.TOTL.ZG", label: "CPI上昇率", category: "price" },
   { id: "NE.TRD.GNFS.ZS", label: "貿易/GDP比", category: "trade" },
   { id: "BX.KLT.DINV.WD.GD.ZS", label: "FDI流入/GDP比", category: "trade" },
+  // SIPRI軍事費データ（World Bank経由）
+  { id: "MS.MIL.XPND.GD.ZS", label: "軍事費/GDP比", category: "military" },
+  { id: "MS.MIL.XPND.CD", label: "軍事費（USD）", category: "military" },
 ];
 
 const WB_COUNTRIES: { code: string; label: string }[] = [
@@ -119,77 +122,200 @@ export async function fetchWorldBankDirect(): Promise<OsintDataPoint[]> {
 }
 
 // ============================================================
-// ACLED — 紛争・抗議活動データ（OAuth認証: ACLED_EMAIL + ACLED_PASSWORD）
+// USGS Earthquake — 地震データ（APIキー不要）
 // ============================================================
-async function getAcledToken(): Promise<string | null> {
-  const email = process.env.ACLED_EMAIL;
-  const password = process.env.ACLED_PASSWORD;
-  if (!email || !password) return null;
+const USGS_BASE = "https://earthquake.usgs.gov/fdsnws/event/1";
+
+export async function fetchUSGSEarthquake(): Promise<OsintDataPoint[]> {
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const from = weekAgo.toISOString().split("T")[0];
+  const to = now.toISOString().split("T")[0];
 
   try {
-    const res = await fetch("https://acleddata.com/oauth/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        username: email,
-        password: password,
-        grant_type: "password",
-        client_id: "acled",
-      }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.access_token ?? null;
-  } catch {
-    return null;
-  }
-}
+    // M4.5+の件数
+    const countUrl = `${USGS_BASE}/count?format=geojson&starttime=${from}&endtime=${to}&minmagnitude=4.5`;
+    const countRes = await fetch(countUrl, { signal: AbortSignal.timeout(8000) });
+    if (!countRes.ok) return [];
+    const countData = await countRes.json();
+    const totalCount = countData?.count ?? 0;
 
-export async function fetchACLED(): Promise<OsintDataPoint[]> {
-  const token = await getAcledToken();
-  if (!token) return [];
+    // M4.5+の詳細（上位20件、マグニチュード順）
+    const queryUrl = `${USGS_BASE}/query?format=geojson&starttime=${from}&endtime=${to}&minmagnitude=4.5&orderby=magnitude&limit=20`;
+    const queryRes = await fetch(queryUrl, { signal: AbortSignal.timeout(8000) });
+    if (!queryRes.ok) {
+      return [{
+        source: "usgs", category: "disaster", indicator: "earthquake_m45_total",
+        label: `M4.5+地震件数（直近7日）`, value: totalCount, date: to, unit: "件",
+      }];
+    }
+    const queryData = await queryRes.json();
+    const features = queryData?.features ?? [];
 
-  try {
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const from = weekAgo.toISOString().split("T")[0];
-    const to = now.toISOString().split("T")[0];
-    const headers = { "Authorization": `Bearer ${token}` };
-
-    // 総数取得
-    const url = `https://acleddata.com/api/acled/read?_format=json&event_date=${from}|${to}&event_date_where=BETWEEN&limit=0`;
-    const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return [];
-    const data = await res.json();
-    const totalEvents = data?.count ?? (Array.isArray(data?.data) ? data.data.length : 0);
+    // 地域別集計
+    const regionCounts: Record<string, number> = {};
+    let maxMag = 0;
+    let maxPlace = "";
+    for (const f of features) {
+      const mag = f.properties?.mag ?? 0;
+      const place = f.properties?.place ?? "Unknown";
+      if (mag > maxMag) { maxMag = mag; maxPlace = place; }
+      // 地域を大まかに分類（経度ベース）
+      const lon = f.geometry?.coordinates?.[0] ?? 0;
+      const lat = f.geometry?.coordinates?.[1] ?? 0;
+      const region = classifyRegion(lat, lon);
+      regionCounts[region] = (regionCounts[region] ?? 0) + 1;
+    }
 
     const results: OsintDataPoint[] = [
       {
-        source: "acled", category: "conflict", indicator: "acled_total_events",
-        label: `紛争・抗議イベント総数（直近7日）`, value: totalEvents,
-        date: to, unit: "件",
+        source: "usgs", category: "disaster", indicator: "earthquake_m45_total",
+        label: `M4.5+地震件数（直近7日）`, value: totalCount, date: to, unit: "件",
+      },
+      {
+        source: "usgs", category: "disaster", indicator: "earthquake_max_magnitude",
+        label: `最大マグニチュード（${maxPlace}）`, value: maxMag, date: to, unit: "M",
       },
     ];
 
-    // 主要地域のイベント数（並列）
-    const regions = ["Middle East", "Europe", "Asia", "Africa", "Americas"];
-    const regionPromises = regions.map(async (region) => {
-      try {
-        const rUrl = `https://acleddata.com/api/acled/read?_format=json&event_date=${from}|${to}&event_date_where=BETWEEN&region=${encodeURIComponent(region)}&limit=0`;
-        const rRes = await fetch(rUrl, { headers, signal: AbortSignal.timeout(5000) });
-        if (!rRes.ok) return null;
-        const rData = await rRes.json();
-        return {
-          source: "acled" as const, category: "conflict" as const,
-          indicator: `acled_${region.toLowerCase().replace(/\s/g, "_")}`,
-          label: `${region}紛争イベント数（直近7日）`,
-          value: rData?.count ?? 0, date: to, country: region, unit: "件",
-        } satisfies OsintDataPoint;
-      } catch { return null; }
+    // M6+件数
+    const m6Count = features.filter((f: { properties?: { mag?: number } }) => (f.properties?.mag ?? 0) >= 6).length;
+    if (m6Count > 0) {
+      results.push({
+        source: "usgs", category: "disaster", indicator: "earthquake_m6_count",
+        label: `M6.0+地震件数（直近7日）`, value: m6Count, date: to, unit: "件",
+      });
+    }
+
+    for (const [region, count] of Object.entries(regionCounts)) {
+      results.push({
+        source: "usgs", category: "disaster",
+        indicator: `earthquake_${region.toLowerCase().replace(/\s/g, "_")}`,
+        label: `${region}地震件数（直近7日）`, value: count, date: to, country: region, unit: "件",
+      });
+    }
+
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+function classifyRegion(lat: number, lon: number): string {
+  if (lat > 15 && lat < 50 && lon > 25 && lon < 65) return "中東";
+  if (lat > 35 && lat < 72 && lon > -25 && lon < 40) return "欧州";
+  if (lat > -10 && lat < 55 && lon > 65 && lon < 180) return "アジア太平洋";
+  if (lat > -35 && lat < 37 && lon > -20 && lon < 55) return "アフリカ";
+  if (lon > -170 && lon < -30) return "南北米";
+  return "その他";
+}
+
+// ============================================================
+// FAO Food Price Index — 食料価格指数（APIキー不要）
+// ============================================================
+const FAO_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+export async function fetchFAOFoodPrice(): Promise<OsintDataPoint[]> {
+  const now = new Date();
+
+  // 最新月のCSVを取得（当月→前月→前々月の順で試行）
+  for (let offset = 0; offset < 3; offset++) {
+    const target = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    const monthStr = FAO_MONTHS[target.getMonth()];
+    const url = `https://www.fao.org/media/docs/worldfoodsituationlibraries/default-document-library/food_price_indices_data_csv_${monthStr}.csv`;
+
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const text = await res.text();
+      return parseFAOCsv(text);
+    } catch {
+      continue;
+    }
+  }
+  return [];
+}
+
+function parseFAOCsv(text: string): OsintDataPoint[] {
+  const lines = text.split("\n").filter((l) => l.trim());
+  // ヘッダー行を探す（"Date" を含む行）
+  const headerIdx = lines.findIndex((l) => l.includes("Date") && l.includes("Food Price Index"));
+  if (headerIdx < 0) return [];
+
+  const headers = lines[headerIdx].split(",").map((h) => h.trim());
+  // 最新3行分のデータを取得
+  const dataLines = lines.slice(headerIdx + 1).filter((l) => l.trim() && !l.startsWith(","));
+  const recent = dataLines.slice(-3);
+
+  const results: OsintDataPoint[] = [];
+  for (const line of recent) {
+    const cols = line.split(",").map((c) => c.trim());
+    const date = cols[0] ?? "";
+    // "2026-02" のような形式に変換
+    const dateNorm = date.includes("/")
+      ? `${date.split("/")[0]}-${date.split("/")[1]?.padStart(2, "0")}`
+      : date;
+
+    const indices = [
+      { col: "Food Price Index", indicator: "fao_food_price", label: "FAO食料価格指数（総合）" },
+      { col: "Meat", indicator: "fao_meat", label: "FAO食肉価格指数" },
+      { col: "Dairy", indicator: "fao_dairy", label: "FAO乳製品価格指数" },
+      { col: "Cereals", indicator: "fao_cereals", label: "FAO穀物価格指数" },
+      { col: "Oils", indicator: "fao_oils", label: "FAO油脂価格指数" },
+      { col: "Sugar", indicator: "fao_sugar", label: "FAO砂糖価格指数" },
+    ];
+
+    for (const idx of indices) {
+      const colIdx = headers.indexOf(idx.col);
+      if (colIdx < 0) continue;
+      const val = parseFloat(cols[colIdx]);
+      if (isNaN(val)) continue;
+      results.push({
+        source: "fao", category: "price", indicator: idx.indicator,
+        label: idx.label, value: val, date: dateNorm, unit: "指数",
+      });
+    }
+  }
+  return results;
+}
+
+// ============================================================
+// OpenSanctions — 制裁対象データ統計（APIキー不要: /catalog）
+// ============================================================
+export async function fetchOpenSanctions(): Promise<OsintDataPoint[]> {
+  try {
+    const res = await fetch("https://api.opensanctions.org/catalog", {
+      signal: AbortSignal.timeout(10000),
     });
-    const regionData = await Promise.all(regionPromises);
-    for (const r of regionData) { if (r) results.push(r); }
+    if (!res.ok) return [];
+    const data = await res.json();
+    const datasets = data?.datasets ?? data;
+
+    const today = new Date().toISOString().split("T")[0];
+    const results: OsintDataPoint[] = [];
+
+    // 主要データセットの統計を取得
+    const targets: { name: string; label: string }[] = [
+      { name: "default", label: "OpenSanctions全エンティティ数" },
+      { name: "sanctions", label: "制裁対象エンティティ数" },
+      { name: "peps", label: "PEPs（重要公的地位者）数" },
+      { name: "crime", label: "犯罪関連エンティティ数" },
+    ];
+
+    for (const t of targets) {
+      const ds = Array.isArray(datasets)
+        ? datasets.find((d: { name?: string }) => d.name === t.name)
+        : datasets[t.name];
+      if (!ds) continue;
+      const count = ds.thing_count ?? ds.entity_count ?? ds.targets?.count ?? 0;
+      if (count > 0) {
+        results.push({
+          source: "opensanctions", category: "sanctions", indicator: `osanc_${t.name}`,
+          label: t.label, value: count, date: ds.last_export?.split("T")?.[0] ?? today, unit: "件",
+        });
+      }
+    }
+
     return results;
   } catch {
     return [];
@@ -346,14 +472,16 @@ export async function fetchEStatData(): Promise<OsintDataPoint[]> {
 // 全データソース並列取得
 // ============================================================
 export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
-  const [worldbank, acled, fred, edinet, estat] = await Promise.all([
+  const [worldbank, fred, edinet, estat, usgs, fao, opensanctions] = await Promise.all([
     fetchWorldBankDirect().catch(() => [] as OsintDataPoint[]),
-    fetchACLED().catch(() => [] as OsintDataPoint[]),
     fetchFRED().catch(() => [] as OsintDataPoint[]),
     fetchEDINET().catch(() => [] as OsintDataPoint[]),
     fetchEStatData().catch(() => [] as OsintDataPoint[]),
+    fetchUSGSEarthquake().catch(() => [] as OsintDataPoint[]),
+    fetchFAOFoodPrice().catch(() => [] as OsintDataPoint[]),
+    fetchOpenSanctions().catch(() => [] as OsintDataPoint[]),
   ]);
-  return [...worldbank, ...acled, ...fred, ...edinet, ...estat];
+  return [...worldbank, ...fred, ...edinet, ...estat, ...usgs, ...fao, ...opensanctions];
 }
 
 // ============================================================
@@ -420,14 +548,36 @@ export function detectAnomalies(
     });
   }
 
-  // ACLED: 紛争イベント数が多い場合
-  const acledTotal = dataPoints.find((dp) => dp.indicator === "acled_total_events");
-  if (acledTotal?.value !== null && acledTotal?.value !== undefined && acledTotal.value > 500) {
+  // USGS: M6+地震が発生した場合
+  const earthquakeM6 = dataPoints.find((dp) => dp.indicator === "earthquake_m6_count");
+  if (earthquakeM6?.value !== null && earthquakeM6?.value !== undefined && earthquakeM6.value > 0) {
     anomalies.push({
-      theme: "geopolitics", source: "acled", type: "conflict_spike",
-      detail: `直近7日間の紛争・抗議イベントが${acledTotal.value}件（高水準）`,
-      severity: acledTotal.value > 1000 ? "high" : "medium",
-      current_value: acledTotal.value, baseline_value: 300, change_pct: 0,
+      theme: "geopolitics", source: "usgs", type: "earthquake_spike",
+      detail: `直近7日間にM6.0+地震が${earthquakeM6.value}件発生`,
+      severity: earthquakeM6.value >= 3 ? "high" : "medium",
+      current_value: earthquakeM6.value, baseline_value: 0, change_pct: 0,
+    });
+  }
+
+  // USGS: M4.5+の週間件数が異常に多い場合（通常100前後）
+  const earthquakeTotal = dataPoints.find((dp) => dp.indicator === "earthquake_m45_total");
+  if (earthquakeTotal?.value !== null && earthquakeTotal?.value !== undefined && earthquakeTotal.value > 200) {
+    anomalies.push({
+      theme: "geopolitics", source: "usgs", type: "earthquake_spike",
+      detail: `M4.5+地震が直近7日間で${earthquakeTotal.value}件（通常の約2倍）`,
+      severity: earthquakeTotal.value > 300 ? "high" : "medium",
+      current_value: earthquakeTotal.value, baseline_value: 100, change_pct: 0,
+    });
+  }
+
+  // FAO: 食料価格指数が急騰（2014-16基準=100、150超で警告）
+  const faoFood = dataPoints.find((dp) => dp.indicator === "fao_food_price");
+  if (faoFood?.value !== null && faoFood?.value !== undefined && faoFood.value > 150) {
+    anomalies.push({
+      theme: "food_supply", source: "fao", type: "indicator_change",
+      detail: `FAO食料価格指数が${faoFood.value.toFixed(1)}（基準100、高水準）`,
+      severity: faoFood.value > 170 ? "high" : "medium",
+      current_value: faoFood.value, baseline_value: 100, change_pct: 0,
     });
   }
 
