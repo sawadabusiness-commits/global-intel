@@ -1,22 +1,30 @@
 import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT } from "./prompts";
 import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe } from "./types";
 
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const PRIMARY_MODEL = "gemini-2.5-flash";
+const FALLBACK_MODEL = "gemini-2.0-flash";
 
-async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
-  const res = await fetch(`${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: maxTokens,
-        responseMimeType: "application/json",
-      },
-    }),
-  });
+async function callGeminiWithModel(
+  model: string,
+  prompt: string,
+  maxTokens: number
+): Promise<string> {
+  const res = await fetch(
+    `${GEMINI_BASE}/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: maxTokens,
+          responseMimeType: "application/json",
+        },
+      }),
+    }
+  );
 
   if (!res.ok) {
     const err = await res.text();
@@ -25,6 +33,20 @@ async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
 
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+}
+
+// 2.5 Flash → 429なら 2.0 Flash にフォールバック
+async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
+  try {
+    return await callGeminiWithModel(PRIMARY_MODEL, prompt, maxTokens);
+  } catch (e) {
+    const msg = String(e);
+    if (msg.includes("429")) {
+      console.log(`${PRIMARY_MODEL} rate limited, falling back to ${FALLBACK_MODEL}`);
+      return await callGeminiWithModel(FALLBACK_MODEL, prompt, maxTokens);
+    }
+    throw e;
+  }
 }
 
 // --- Cron用: 複数記事を一括で軽量分析 ---
@@ -66,7 +88,7 @@ article_id: ${a.article_id}
     return parsed;
   } catch (e) {
     console.error("Batch summarize failed:", e);
-    throw e; // cronルートでエラーをキャッチしてレスポンスに含める
+    throw e;
   }
 }
 
@@ -112,27 +134,6 @@ export async function deepAnalyze(
     return JSON.parse(text);
   } catch (e) {
     console.error("Deep analysis failed:", e);
-    return null;
-  }
-}
-
-// 後方互換
-export async function analyzeArticle(article: NewsDataArticle) {
-  const { SYSTEM_PROMPT } = await import("./prompts");
-  const articleText = `タイトル: ${article.title}
-ソース: ${article.source_name}
-日付: ${article.pubDate}
-国: ${(article.country ?? []).join(", ")}
-カテゴリ: ${(article.category ?? []).join(", ")}
-概要: ${article.description ?? "(なし)"}`;
-
-  const prompt = `${SYSTEM_PROMPT}\n\n═══════════════════════════════════════\n以下の記事を分析してください:\n\n${articleText}`;
-
-  try {
-    const text = await callGemini(prompt);
-    return JSON.parse(text);
-  } catch (e) {
-    console.error(`Analysis failed for "${article.title}":`, e);
     return null;
   }
 }
