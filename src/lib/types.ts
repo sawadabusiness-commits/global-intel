@@ -9,7 +9,8 @@ export type ThemeId =
   | "energy_resources"
   | "financial_system"
   | "food_supply"
-  | "space_cyber";
+  | "space_cyber"
+  | "llm_api";
 
 export interface Theme {
   id: ThemeId;

@@ -81,6 +81,14 @@ export const THEMES: Theme[] = [
     color: "#E879F9",
     queryKeywords: ["satellite", "cyber attack", "submarine cable"],
   },
+  {
+    id: "llm_api",
+    label: "LLM & AI API",
+    labelJa: "LLM・AI基盤",
+    icon: "⬣",
+    color: "#22D3EE",
+    queryKeywords: ["LLM API", "GPT model", "Gemini API", "Claude API", "AI pricing"],
+  },
 ];
 
 export const THEME_MAP = Object.fromEntries(
