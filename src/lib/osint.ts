@@ -49,67 +49,72 @@ export async function fetchAllGdeltData(): Promise<GdeltToneData[]> {
 }
 
 // ============================================================
-// DBnomics — 統合マクロ経済データ（APIキー不要）
-// World Bank / IMF / BIS / UNCTAD を1つのAPIで取得
+// World Bank 直接API — マクロ経済データ（APIキー不要）
+// DBnomicsより鮮度が高い（2024年データあり）
 // ============================================================
-const DBNOMICS_BASE = "https://api.db.nomics.world/v22";
+const WB_BASE = "https://api.worldbank.org/v2";
 
-const DBNOMICS_SERIES: { id: string; label: string; category: OsintDataPoint["category"]; country: string }[] = [
-  // World Bank — GDP成長率
-  { id: "WB/WDI/A-NY.GDP.MKTP.KD.ZG-USA", label: "米国GDP成長率", category: "macro", country: "USA" },
-  { id: "WB/WDI/A-NY.GDP.MKTP.KD.ZG-JPN", label: "日本GDP成長率", category: "macro", country: "JPN" },
-  { id: "WB/WDI/A-NY.GDP.MKTP.KD.ZG-CHN", label: "中国GDP成長率", category: "macro", country: "CHN" },
-  { id: "WB/WDI/A-NY.GDP.MKTP.KD.ZG-DEU", label: "ドイツGDP成長率", category: "macro", country: "DEU" },
-  { id: "WB/WDI/A-NY.GDP.MKTP.KD.ZG-IND", label: "インドGDP成長率", category: "macro", country: "IND" },
-  { id: "WB/WDI/A-NY.GDP.MKTP.KD.ZG-BRA", label: "ブラジルGDP成長率", category: "macro", country: "BRA" },
-  // World Bank — CPI
-  { id: "WB/WDI/A-FP.CPI.TOTL.ZG-USA", label: "米国CPI上昇率", category: "price", country: "USA" },
-  { id: "WB/WDI/A-FP.CPI.TOTL.ZG-JPN", label: "日本CPI上昇率", category: "price", country: "JPN" },
-  { id: "WB/WDI/A-FP.CPI.TOTL.ZG-CHN", label: "中国CPI上昇率", category: "price", country: "CHN" },
-  // World Bank — 貿易（GDP比）
-  { id: "WB/WDI/A-NE.TRD.GNFS.ZS-USA", label: "米国貿易/GDP比", category: "trade", country: "USA" },
-  { id: "WB/WDI/A-NE.TRD.GNFS.ZS-JPN", label: "日本貿易/GDP比", category: "trade", country: "JPN" },
-  { id: "WB/WDI/A-NE.TRD.GNFS.ZS-CHN", label: "中国貿易/GDP比", category: "trade", country: "CHN" },
-  // World Bank — FDI（GDP比）= UNCTAD相当
-  { id: "WB/WDI/A-BX.KLT.DINV.WD.GD.ZS-USA", label: "米国FDI流入/GDP比", category: "trade", country: "USA" },
-  { id: "WB/WDI/A-BX.KLT.DINV.WD.GD.ZS-JPN", label: "日本FDI流入/GDP比", category: "trade", country: "JPN" },
-  { id: "WB/WDI/A-BX.KLT.DINV.WD.GD.ZS-IND", label: "インドFDI流入/GDP比", category: "trade", country: "IND" },
-  { id: "WB/WDI/A-BX.KLT.DINV.WD.GD.ZS-BRA", label: "ブラジルFDI流入/GDP比", category: "trade", country: "BRA" },
+const WB_INDICATORS: { id: string; label: string; category: OsintDataPoint["category"] }[] = [
+  { id: "NY.GDP.MKTP.KD.ZG", label: "GDP成長率", category: "macro" },
+  { id: "FP.CPI.TOTL.ZG", label: "CPI上昇率", category: "price" },
+  { id: "NE.TRD.GNFS.ZS", label: "貿易/GDP比", category: "trade" },
+  { id: "BX.KLT.DINV.WD.GD.ZS", label: "FDI流入/GDP比", category: "trade" },
 ];
 
-export async function fetchDBnomics(): Promise<OsintDataPoint[]> {
+const WB_COUNTRIES: { code: string; label: string }[] = [
+  { code: "USA", label: "米国" },
+  { code: "JPN", label: "日本" },
+  { code: "CHN", label: "中国" },
+  { code: "DEU", label: "ドイツ" },
+  { code: "IND", label: "インド" },
+  { code: "BRA", label: "ブラジル" },
+];
+
+const COUNTRY_LABELS = Object.fromEntries(WB_COUNTRIES.map((c) => [c.code, c.label]));
+
+export async function fetchWorldBankDirect(): Promise<OsintDataPoint[]> {
+  const currentYear = new Date().getFullYear();
+  const countryCodes = WB_COUNTRIES.map((c) => c.code).join(";");
   const results: OsintDataPoint[] = [];
-  // バッチで取得（5件ずつ）
-  const batchSize = 5;
-  for (let i = 0; i < DBNOMICS_SERIES.length; i += batchSize) {
-    const batch = DBNOMICS_SERIES.slice(i, i + batchSize);
-    const promises = batch.map(async (s) => {
-      try {
-        const url = `${DBNOMICS_BASE}/series/${s.id}?observations=1&format=json`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-        if (!res.ok) return null;
-        const data = await res.json();
-        const series = data?.series?.docs?.[0];
-        if (!series) return null;
-        const periods = series.period ?? [];
-        const values = series.value ?? [];
-        if (periods.length === 0) return null;
-        const lastIdx = periods.length - 1;
-        return {
-          source: "dbnomics" as const,
-          category: s.category,
-          indicator: s.id,
-          label: s.label,
-          value: typeof values[lastIdx] === "number" ? values[lastIdx] : null,
-          date: String(periods[lastIdx]),
-          country: s.country,
+
+  const promises = WB_INDICATORS.map(async (ind) => {
+    try {
+      const url = `${WB_BASE}/country/${countryCodes}/indicator/${ind.id}?date=${currentYear - 3}:${currentYear}&format=json&per_page=100`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const entries = data?.[1] ?? [];
+
+      // 国ごとに最新のnon-null値を取得
+      const byCountry = new Map<string, { date: string; value: number }>();
+      for (const e of entries) {
+        if (e.value === null) continue;
+        const cc = e.country?.id ?? "";
+        const existing = byCountry.get(cc);
+        if (!existing || e.date > existing.date) {
+          byCountry.set(cc, { date: e.date, value: e.value });
+        }
+      }
+
+      const points: OsintDataPoint[] = [];
+      for (const [cc, { date, value }] of byCountry) {
+        points.push({
+          source: "dbnomics", // 互換性のため同じソース名を維持
+          category: ind.category,
+          indicator: ind.id,
+          label: `${COUNTRY_LABELS[cc] ?? cc}${ind.label}`,
+          value,
+          date,
+          country: cc,
           unit: "%",
-        } satisfies OsintDataPoint;
-      } catch { return null; }
-    });
-    const batchResults = await Promise.all(promises);
-    for (const r of batchResults) { if (r) results.push(r); }
-  }
+        });
+      }
+      return points;
+    } catch { return []; }
+  });
+
+  const allResults = await Promise.all(promises);
+  for (const r of allResults) results.push(...r);
   return results;
 }
 
@@ -287,14 +292,14 @@ export async function fetchEStatData(): Promise<OsintDataPoint[]> {
 // 全データソース並列取得
 // ============================================================
 export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
-  const [dbnomics, acled, fred, edinet, estat] = await Promise.all([
-    fetchDBnomics().catch(() => [] as OsintDataPoint[]),
+  const [worldbank, acled, fred, edinet, estat] = await Promise.all([
+    fetchWorldBankDirect().catch(() => [] as OsintDataPoint[]),
     fetchACLED().catch(() => [] as OsintDataPoint[]),
     fetchFRED().catch(() => [] as OsintDataPoint[]),
     fetchEDINET().catch(() => [] as OsintDataPoint[]),
     fetchEStatData().catch(() => [] as OsintDataPoint[]),
   ]);
-  return [...dbnomics, ...acled, ...fred, ...edinet, ...estat];
+  return [...worldbank, ...acled, ...fred, ...edinet, ...estat];
 }
 
 // ============================================================
