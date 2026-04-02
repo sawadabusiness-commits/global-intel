@@ -1,5 +1,5 @@
 import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT } from "./prompts";
-import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, WorldBankDataPoint, EStatDataPoint } from "./types";
+import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint } from "./types";
 import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
@@ -190,26 +190,36 @@ export async function generateWeeklyDeepDive(
 export async function batchVerifyWithOsint(
   articles: { id: string; title_ja: string; summary_ja: string; primary_theme: ThemeId }[],
   gdeltData: GdeltToneData[],
-  worldbankData: WorldBankDataPoint[] = [],
-  estatData: EStatDataPoint[] = [],
+  dataPoints: OsintDataPoint[] = [],
 ): Promise<OsintVerification[]> {
   const gdeltContext = gdeltData.map((d) =>
     `テーマ: ${d.theme} | 最新トーン: ${d.latest_tone.toFixed(2)} | 7日平均: ${d.avg_tone_7d.toFixed(2)} | 変化: ${d.tone_change_pct > 0 ? "+" : ""}${d.tone_change_pct.toFixed(1)}% | 異常: ${d.is_anomaly ? "YES" : "NO"}`
   ).join("\n");
 
-  const wbContext = worldbankData.length > 0
-    ? "\n\n【World Bank マクロ経済指標】\n" + worldbankData.map((d) =>
-        `${d.country} | ${d.indicator_label} | ${d.date}: ${d.value?.toFixed(1)}%`
-      ).join("\n")
-    : "";
+  // ソース別にデータポイントをグルーピング
+  const bySource = new Map<string, OsintDataPoint[]>();
+  for (const dp of dataPoints) {
+    if (!bySource.has(dp.source)) bySource.set(dp.source, []);
+    bySource.get(dp.source)!.push(dp);
+  }
 
-  const estatContext = estatData.length > 0
-    ? "\n\n【e-Stat 日本統計】\n" + estatData.map((d) =>
-        `${d.indicator_label} | ${d.date}: ${d.value} ${d.unit}`
-      ).join("\n")
-    : "";
+  const sourceLabels: Record<string, string> = {
+    dbnomics: "DBnomics（World Bank/IMF/BIS/UNCTAD）",
+    acled: "ACLED（紛争データ）",
+    fred: "FRED（米国金融指標）",
+    edinet: "EDINET（日本有報）",
+    estat: "e-Stat（日本統計）",
+  };
 
-  const osintContext = gdeltContext + wbContext + estatContext;
+  let extraContext = "";
+  for (const [source, points] of bySource) {
+    extraContext += `\n\n【${sourceLabels[source] ?? source}】\n`;
+    extraContext += points.map((dp) =>
+      `${dp.label} | ${dp.date}: ${dp.value} ${dp.unit ?? ""}${dp.country ? ` (${dp.country})` : ""}`
+    ).join("\n");
+  }
+
+  const osintContext = gdeltContext + extraContext;
 
   const articleList = articles.map((a) =>
     `ID: ${a.id}\nテーマ: ${a.primary_theme}\nタイトル: ${a.title_ja}\n要約: ${a.summary_ja}`

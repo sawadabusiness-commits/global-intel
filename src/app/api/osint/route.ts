@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAllGdeltData, fetchWorldBankData, fetchEStatData, detectAnomalies } from "@/lib/osint";
+import { fetchAllGdeltData, fetchAllDataSources, detectAnomalies } from "@/lib/osint";
 import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive } from "@/lib/github-models";
 import {
   getArticles, getLatestDate,
@@ -53,26 +53,30 @@ export async function GET(req: NextRequest) {
   const result: Record<string, unknown> = { ok: true, date: today };
 
   try {
-    // 1. 全データソース並列取得（~5-8秒）
-    const [gdeltData, worldbankData, estatData] = await Promise.all([
+    // 1. 全データソース並列取得（~5-10秒）
+    const [gdeltData, dataPoints] = await Promise.all([
       fetchAllGdeltData(),
-      fetchWorldBankData(),
-      fetchEStatData(),
+      fetchAllDataSources(),
     ]);
-    const anomalies = detectAnomalies(gdeltData, worldbankData, estatData);
+    const anomalies = detectAnomalies(gdeltData, dataPoints);
 
     const snapshot: OsintSnapshot = {
       date: today,
       gdelt: gdeltData,
-      worldbank: worldbankData,
-      estat: estatData,
+      data_points: dataPoints,
       anomalies,
       created_at: new Date().toISOString(),
     };
     await saveOsintSnapshot(snapshot);
+
+    // ソース別の集計
+    const sourceCounts: Record<string, number> = {};
+    for (const dp of dataPoints) {
+      sourceCounts[dp.source] = (sourceCounts[dp.source] ?? 0) + 1;
+    }
     result.gdelt_themes = gdeltData.length;
-    result.worldbank_points = worldbankData.length;
-    result.estat_points = estatData.length;
+    result.data_sources = sourceCounts;
+    result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
 
     // 2. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
@@ -89,8 +93,7 @@ export async function GET(req: NextRequest) {
               primary_theme: a.primary_theme,
             })),
             gdeltData,
-            worldbankData,
-            estatData
+            dataPoints
           );
           await saveOsintVerifications(latestDate, verifications);
           result.verified = verifications.length;

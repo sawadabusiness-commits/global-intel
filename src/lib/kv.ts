@@ -1,5 +1,6 @@
 import { kv } from "@vercel/kv";
 import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle } from "./types";
+// Note: OsintSnapshot now uses unified data_points[] instead of separate worldbank/estat fields
 
 // --- 記事 ---
 export async function saveArticles(date: string, articles: AnalyzedArticle[]) {

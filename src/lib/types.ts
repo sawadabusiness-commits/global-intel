@@ -196,8 +196,8 @@ export interface GdeltToneData {
 
 export interface OsintAnomaly {
   theme: ThemeId;
-  source: "gdelt" | "worldbank" | "estat";
-  type: "tone_shift" | "indicator_change";
+  source: string;
+  type: "tone_shift" | "indicator_change" | "conflict_spike" | "filing_surge";
   detail: string;
   severity: "high" | "medium";
   current_value: number;
@@ -205,28 +205,21 @@ export interface OsintAnomaly {
   change_pct: number;
 }
 
-export interface WorldBankDataPoint {
-  indicator_id: string;
-  indicator_label: string;
-  country: string;
-  country_code: string;
-  date: string;
-  value: number | null;
-}
-
-export interface EStatDataPoint {
+export interface OsintDataPoint {
+  source: "dbnomics" | "acled" | "fred" | "edinet" | "estat";
+  category: "macro" | "conflict" | "finance" | "trade" | "filing" | "price";
   indicator: string;
-  indicator_label: string;
-  date: string;
+  label: string;
   value: number | null;
-  unit: string;
+  date: string;
+  country?: string;
+  unit?: string;
 }
 
 export interface OsintSnapshot {
   date: string;
   gdelt: GdeltToneData[];
-  worldbank: WorldBankDataPoint[];
-  estat: EStatDataPoint[];
+  data_points: OsintDataPoint[];
   anomalies: OsintAnomaly[];
   created_at: string;
 }
