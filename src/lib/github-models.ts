@@ -145,8 +145,8 @@ ${prediction.ai_scenarios.map((s, i) => `${i + 1}. ${s.name}（${s.probability}�
 export async function batchDeepAnalyze(
   articles: { title: string; source: string; published: string; region: string; summary: string }[]
 ): Promise<(DeepAnalysis | null)[]> {
-  // 4記事ずつに分割して処理
-  const chunkSize = 4;
+  // 6記事ずつに分割して処理
+  const chunkSize = 6;
   const results: (DeepAnalysis | null)[] = [];
 
   for (let i = 0; i < articles.length; i += chunkSize) {
