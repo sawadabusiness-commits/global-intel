@@ -78,21 +78,28 @@ export async function GET(req: NextRequest) {
     result.data_sources = sourceCounts;
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
-    // e-Stat デバッグ: 直接テスト
+    // e-Stat デバッグ: メタ情報取得してカテゴリコードを特定
     try {
       const estatKey = process.env.ESTAT_API_KEY;
-      const testUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${estatKey}&statsDataId=0003421913&cdCat01=0001&cdArea=00000&limit=3&metaGetFlg=N&sectionHeaderFlg=1`;
+      // まずフィルタなしで少量取得してデータ構造を確認
+      const testUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${estatKey}&statsDataId=0003421913&limit=3&metaGetFlg=Y&sectionHeaderFlg=1`;
       const testRes = await fetch(testUrl, { signal: AbortSignal.timeout(10000) });
       const testData = await testRes.json();
       const testStatus = testData?.GET_STATS_DATA?.RESULT?.STATUS;
       const testMsg = testData?.GET_STATS_DATA?.RESULT?.ERROR_MSG;
       const testValues = testData?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+      const classMeta = testData?.GET_STATS_DATA?.STATISTICAL_DATA?.CLASS_INF?.CLASS_OBJ;
       result.estat_debug = {
         http_status: testRes.status,
         api_status: testStatus,
         api_msg: testMsg,
         value_count: Array.isArray(testValues) ? testValues.length : 0,
-        sample: Array.isArray(testValues) ? testValues[0] : null,
+        sample: Array.isArray(testValues) ? testValues.slice(0, 2) : null,
+        categories: Array.isArray(classMeta) ? classMeta.map((c: any) => ({
+          id: c["@id"],
+          name: c["@name"],
+          codes: Array.isArray(c.CLASS) ? c.CLASS.slice(0, 5).map((cl: any) => ({ code: cl["@code"], name: cl["@name"] })) : c.CLASS ? [{ code: c.CLASS["@code"], name: c.CLASS["@name"] }] : [],
+        })) : null,
       };
     } catch (e) {
       result.estat_debug = { error: String(e) };
