@@ -243,7 +243,7 @@ export async function batchVerifyWithOsint(
     `ID: ${a.id}\nテーマ: ${a.primary_theme}\nタイトル: ${a.title_ja}\n要約: ${a.summary_ja}`
   ).join("\n---\n");
 
-  const userPrompt = `【OSINTデータ（GDELTメディアトーン分析）】\n${osintContext}\n\n【検証対象記事】\n${articleList}`;
+  const userPrompt = `【OSINTデータ（全ソース）】\n${osintContext}\n\n【検証対象記事】\n${articleList}`;
 
   const res = await fetch(GITHUB_MODELS_URL, {
     method: "POST",
