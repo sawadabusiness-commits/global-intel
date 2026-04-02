@@ -119,29 +119,52 @@ export async function fetchWorldBankDirect(): Promise<OsintDataPoint[]> {
 }
 
 // ============================================================
-// ACLED — 紛争・抗議活動データ（ACLED_API_KEY + ACLED_EMAIL 必要）
+// ACLED — 紛争・抗議活動データ（OAuth認証: ACLED_EMAIL + ACLED_PASSWORD）
 // ============================================================
-export async function fetchACLED(): Promise<OsintDataPoint[]> {
-  const apiKey = process.env.ACLED_API_KEY;
+async function getAcledToken(): Promise<string | null> {
   const email = process.env.ACLED_EMAIL;
-  if (!apiKey || !email) return [];
+  const password = process.env.ACLED_PASSWORD;
+  if (!email || !password) return null;
+
+  try {
+    const res = await fetch("https://acleddata.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        username: email,
+        password: password,
+        grant_type: "password",
+        client_id: "acled",
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchACLED(): Promise<OsintDataPoint[]> {
+  const token = await getAcledToken();
+  if (!token) return [];
 
   try {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const from = weekAgo.toISOString().split("T")[0];
     const to = now.toISOString().split("T")[0];
+    const headers = { "Authorization": `Bearer ${token}` };
 
-    const url = `https://api.acleddata.com/acled/read?key=${apiKey}&email=${encodeURIComponent(email)}&event_date=${from}|${to}&event_date_where=BETWEEN&limit=0`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    // 総数取得
+    const url = `https://acleddata.com/api/acled/read?_format=json&event_date=${from}|${to}&event_date_where=BETWEEN&limit=0`;
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) });
     if (!res.ok) return [];
     const data = await res.json();
+    const totalEvents = data?.count ?? (Array.isArray(data?.data) ? data.data.length : 0);
 
-    const totalEvents = data?.count ?? 0;
-
-    // 地域別の集計も取得
-    const regions = ["Middle East", "Europe", "Asia", "Africa", "Americas"];
-    const regionResults: OsintDataPoint[] = [
+    const results: OsintDataPoint[] = [
       {
         source: "acled", category: "conflict", indicator: "acled_total_events",
         label: `紛争・抗議イベント総数（直近7日）`, value: totalEvents,
@@ -149,11 +172,12 @@ export async function fetchACLED(): Promise<OsintDataPoint[]> {
       },
     ];
 
-    // 主要地域のイベント数を個別取得（並列）
+    // 主要地域のイベント数（並列）
+    const regions = ["Middle East", "Europe", "Asia", "Africa", "Americas"];
     const regionPromises = regions.map(async (region) => {
       try {
-        const rUrl = `https://api.acleddata.com/acled/read?key=${apiKey}&email=${encodeURIComponent(email)}&event_date=${from}|${to}&event_date_where=BETWEEN&region=${encodeURIComponent(region)}&limit=0`;
-        const rRes = await fetch(rUrl, { signal: AbortSignal.timeout(5000) });
+        const rUrl = `https://acleddata.com/api/acled/read?_format=json&event_date=${from}|${to}&event_date_where=BETWEEN&region=${encodeURIComponent(region)}&limit=0`;
+        const rRes = await fetch(rUrl, { headers, signal: AbortSignal.timeout(5000) });
         if (!rRes.ok) return null;
         const rData = await rRes.json();
         return {
@@ -165,8 +189,8 @@ export async function fetchACLED(): Promise<OsintDataPoint[]> {
       } catch { return null; }
     });
     const regionData = await Promise.all(regionPromises);
-    for (const r of regionData) { if (r) regionResults.push(r); }
-    return regionResults;
+    for (const r of regionData) { if (r) results.push(r); }
+    return results;
   } catch {
     return [];
   }
