@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAllGdeltData, detectAnomalies } from "@/lib/osint";
+import { fetchAllGdeltData, fetchWorldBankData, fetchEStatData, detectAnomalies } from "@/lib/osint";
 import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive } from "@/lib/github-models";
 import {
   getArticles, getLatestDate,
@@ -53,18 +53,26 @@ export async function GET(req: NextRequest) {
   const result: Record<string, unknown> = { ok: true, date: today };
 
   try {
-    // 1. GDELTデータ取得（6テーマ並列、~5秒）
-    let gdeltData = await fetchAllGdeltData();
-    const anomalies = detectAnomalies(gdeltData);
+    // 1. 全データソース並列取得（~5-8秒）
+    const [gdeltData, worldbankData, estatData] = await Promise.all([
+      fetchAllGdeltData(),
+      fetchWorldBankData(),
+      fetchEStatData(),
+    ]);
+    const anomalies = detectAnomalies(gdeltData, worldbankData, estatData);
 
     const snapshot: OsintSnapshot = {
       date: today,
       gdelt: gdeltData,
+      worldbank: worldbankData,
+      estat: estatData,
       anomalies,
       created_at: new Date().toISOString(),
     };
     await saveOsintSnapshot(snapshot);
     result.gdelt_themes = gdeltData.length;
+    result.worldbank_points = worldbankData.length;
+    result.estat_points = estatData.length;
     result.anomalies = anomalies.length;
 
     // 2. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
@@ -80,7 +88,9 @@ export async function GET(req: NextRequest) {
               summary_ja: a.summary_ja,
               primary_theme: a.primary_theme,
             })),
-            gdeltData
+            gdeltData,
+            worldbankData,
+            estatData
           );
           await saveOsintVerifications(latestDate, verifications);
           result.verified = verifications.length;

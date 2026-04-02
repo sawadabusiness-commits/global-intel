@@ -1,5 +1,5 @@
 import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT } from "./prompts";
-import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData } from "./types";
+import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, WorldBankDataPoint, EStatDataPoint } from "./types";
 import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
@@ -189,11 +189,27 @@ export async function generateWeeklyDeepDive(
 // --- アナリスト4: OSINT記事検証 ---
 export async function batchVerifyWithOsint(
   articles: { id: string; title_ja: string; summary_ja: string; primary_theme: ThemeId }[],
-  gdeltData: GdeltToneData[]
+  gdeltData: GdeltToneData[],
+  worldbankData: WorldBankDataPoint[] = [],
+  estatData: EStatDataPoint[] = [],
 ): Promise<OsintVerification[]> {
-  const osintContext = gdeltData.map((d) =>
+  const gdeltContext = gdeltData.map((d) =>
     `テーマ: ${d.theme} | 最新トーン: ${d.latest_tone.toFixed(2)} | 7日平均: ${d.avg_tone_7d.toFixed(2)} | 変化: ${d.tone_change_pct > 0 ? "+" : ""}${d.tone_change_pct.toFixed(1)}% | 異常: ${d.is_anomaly ? "YES" : "NO"}`
   ).join("\n");
+
+  const wbContext = worldbankData.length > 0
+    ? "\n\n【World Bank マクロ経済指標】\n" + worldbankData.map((d) =>
+        `${d.country} | ${d.indicator_label} | ${d.date}: ${d.value?.toFixed(1)}%`
+      ).join("\n")
+    : "";
+
+  const estatContext = estatData.length > 0
+    ? "\n\n【e-Stat 日本統計】\n" + estatData.map((d) =>
+        `${d.indicator_label} | ${d.date}: ${d.value} ${d.unit}`
+      ).join("\n")
+    : "";
+
+  const osintContext = gdeltContext + wbContext + estatContext;
 
   const articleList = articles.map((a) =>
     `ID: ${a.id}\nテーマ: ${a.primary_theme}\nタイトル: ${a.title_ja}\n要約: ${a.summary_ja}`
