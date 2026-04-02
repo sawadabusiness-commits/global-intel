@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
     result.data_sources = sourceCounts;
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
+    result.acled_configured = !!(process.env.ACLED_EMAIL && process.env.ACLED_PASSWORD);
 
     // 2. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
     const latestDate = await getLatestDate();
