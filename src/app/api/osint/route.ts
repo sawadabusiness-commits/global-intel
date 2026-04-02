@@ -78,7 +78,25 @@ export async function GET(req: NextRequest) {
     result.data_sources = sourceCounts;
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
-    result.estat_key_set = !!process.env.ESTAT_API_KEY;
+    // e-Stat デバッグ: 直接テスト
+    try {
+      const estatKey = process.env.ESTAT_API_KEY;
+      const testUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${estatKey}&statsDataId=0003421913&cdCat01=0001&cdArea=00000&limit=3&metaGetFlg=N&sectionHeaderFlg=1`;
+      const testRes = await fetch(testUrl, { signal: AbortSignal.timeout(10000) });
+      const testData = await testRes.json();
+      const testStatus = testData?.GET_STATS_DATA?.RESULT?.STATUS;
+      const testMsg = testData?.GET_STATS_DATA?.RESULT?.ERROR_MSG;
+      const testValues = testData?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+      result.estat_debug = {
+        http_status: testRes.status,
+        api_status: testStatus,
+        api_msg: testMsg,
+        value_count: Array.isArray(testValues) ? testValues.length : 0,
+        sample: Array.isArray(testValues) ? testValues[0] : null,
+      };
+    } catch (e) {
+      result.estat_debug = { error: String(e) };
+    }
 
     // 2. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
     const latestDate = await getLatestDate();
