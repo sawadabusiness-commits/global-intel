@@ -1,6 +1,7 @@
 import { DEEP_ANALYSIS_PROMPT } from "./prompts";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
 const MODELS = ["gemini-3-flash-preview", "gemini-2.5-flash", "gemini-3.1-flash-lite-preview", "gemini-2.0-flash"];
 
 async function callGeminiWithModel(
@@ -62,7 +63,45 @@ async function callGemini(prompt: string, maxTokens = 8192): Promise<string> {
       throw e;
     }
   }
-  throw new Error("All Gemini models failed");
+  // 最終フォールバック: GitHub Models (gpt-4o-mini)
+  console.log("All Gemini models failed, falling back to GitHub Models (gpt-4o-mini)");
+  try {
+    const result = await callGitHubModels(prompt, maxTokens);
+    lastUsedModel = "gpt-4o-mini (GitHub Models)";
+    return result;
+  } catch (e) {
+    throw new Error(`All models failed. Last error: ${e}`);
+  }
+}
+
+async function callGitHubModels(prompt: string, maxTokens: number): Promise<string> {
+  const res = await fetch(GITHUB_MODELS_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "出力はJSON形式のみで返してください。前文やMarkdownのバックティックは不要です。" },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`GitHub Models error ${res.status}: ${err}`);
+  }
+
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const jsonMatch = text.match(/\{[\s\S]*\}/) ?? text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) throw new Error(`No JSON in response: ${text.slice(0, 200)}`);
+  return jsonMatch[0];
 }
 
 // --- オンデマンド: 1記事の深層3層分析 ---
