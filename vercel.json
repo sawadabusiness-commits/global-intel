@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/weekly-deep-dive",
-      "schedule": "0 20 * * 6"
+      "schedule": "0 20 * * 5"
     }
   ]
 }
