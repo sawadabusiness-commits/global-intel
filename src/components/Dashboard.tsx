@@ -51,7 +51,8 @@ export default function Dashboard({ articles, date, osintVerifications = [], osi
     return true;
   });
 
-  const unreadCount = articles.filter((a) => !readIds.has(a.id)).length;
+  const unreadOsint = osintArticles.filter((oa) => !readIds.has(oa.id)).length;
+  const unreadCount = articles.filter((a) => !readIds.has(a.id)).length + unreadOsint;
 
   // OSINT検証マップ
   const verificationMap = new Map(osintVerifications.map((v) => [v.article_id, v]));
@@ -156,22 +157,30 @@ export default function Dashboard({ articles, date, osintVerifications = [], osi
         </div>
 
         {/* OSINT独自記事 */}
-        {osintArticles.length > 0 && !selectedTheme && (
+        {osintArticles.length > 0 && !selectedTheme && !(hideRead && unreadOsint === 0) && (
           <div className="mb-6">
             <h3 className="text-xs font-mono text-[var(--muted)] uppercase tracking-wider mb-3 flex items-center gap-2">
               <span className="text-[#22D3EE]">OSINT</span> Intelligence Articles
             </h3>
             <div className="space-y-3">
-              {osintArticles.map((oa) => {
+              {osintArticles.filter((oa) => !(hideRead && readIds.has(oa.id))).map((oa) => {
                 const t = THEME_MAP[oa.theme];
+                const isOsintRead = readIds.has(oa.id);
                 return (
                   <div
                     key={oa.id}
-                    className="rounded-xl p-4"
-                    style={{ background: "var(--surface)", border: "1px solid #22D3EE30" }}
+                    className="rounded-xl p-4 cursor-pointer transition-opacity"
+                    style={{
+                      background: "var(--surface)",
+                      border: "1px solid #22D3EE30",
+                      opacity: isOsintRead ? 0.5 : 1,
+                    }}
+                    onClick={() => { if (!isOsintRead) markAsRead(oa.id); }}
                   >
                     <div className="flex items-start gap-3">
-                      <span className="text-sm mt-0.5" style={{ color: "#22D3EE" }}>OSINT</span>
+                      <span className="text-sm mt-0.5" style={{ color: "#22D3EE" }}>
+                        {isOsintRead ? "✓" : "OSINT"}
+                      </span>
                       <div className="flex-1">
                         <h4 className="text-sm font-medium text-[#E2E8F0]">{oa.title}</h4>
                         <p className="text-xs text-[var(--muted)] mt-2 leading-relaxed whitespace-pre-wrap">{oa.body}</p>
