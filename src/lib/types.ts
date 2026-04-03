@@ -132,7 +132,7 @@ export interface AnalyzedArticle {
   cross_themes: ThemeId[];
   impact: ImpactLevel;
   timeframe: Timeframe;
-  analysis: GeminiAnalysis;
+  analysis: GeminiAnalysis | null;
   created_at: string;
 }
 
