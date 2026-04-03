@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllGdeltData, fetchAllDataSources, detectAnomalies } from "@/lib/osint";
-import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive } from "@/lib/github-models";
+import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive, batchDeepAnalyze } from "@/lib/github-models";
 import {
-  getArticles, getLatestDate,
+  getArticles, getLatestDate, saveArticles,
   saveOsintSnapshot, saveOsintVerifications, saveOsintArticles,
   saveWeeklyDeepDive, getWeeklyDeepDive,
 } from "@/lib/kv";
@@ -79,9 +79,55 @@ export async function GET(req: NextRequest) {
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
 
-    // 2. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
+    // 2. 深層分析補完: /api/cron で未完了の記事を補完（~20秒）
     const latestDate = await getLatestDate();
-    if (latestDate && gdeltData.length > 0) {
+    if (latestDate) {
+      const articles = await getArticles(latestDate);
+      const needsDeep = articles.filter((a) => !a.analysis);
+      if (needsDeep.length > 0) {
+        try {
+          const deepResults = await batchDeepAnalyze(
+            needsDeep.map((a) => ({
+              title: a.title_en,
+              source: a.source,
+              published: a.published,
+              region: a.region,
+              summary: a.summary_ja,
+            })),
+            25000,
+          );
+          let backfilled = 0;
+          const articleMap = new Map(articles.map((a) => [a.id, a]));
+          for (let i = 0; i < needsDeep.length; i++) {
+            const deep = deepResults[i];
+            if (!deep) continue;
+            const orig = articleMap.get(needsDeep[i].id);
+            if (orig) {
+              orig.analysis = {
+                primary_theme: orig.primary_theme,
+                cross_themes: orig.cross_themes,
+                impact: orig.impact,
+                timeframe: orig.timeframe,
+                title_ja: orig.title_ja,
+                summary_ja: orig.summary_ja,
+                ...deep,
+              } as any;
+              backfilled++;
+            }
+          }
+          if (backfilled > 0) {
+            await saveArticles(latestDate, articles);
+          }
+          result.deep_backfilled = backfilled;
+          result.deep_remaining = needsDeep.length - backfilled;
+        } catch (e) {
+          console.error("Deep analysis backfill failed:", e);
+        }
+      }
+    }
+
+    // 3. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
+    if (latestDate) {
       const articles = await getArticles(latestDate);
       if (articles.length > 0) {
         try {
@@ -104,7 +150,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. アナリスト5: 異常値があれば独自記事生成（~10秒）
+    // 4. アナリスト5: 異常値があれば独自記事生成（~10秒）
     if (anomalies.length > 0) {
       try {
         const novelArticle = await generateNovelArticle(anomalies, gdeltData, dataPoints);
@@ -117,7 +163,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4. 土曜日: 週次ディープダイブも生成（~15秒）
+    // 5. 土曜日: 週次ディープダイブも生成（~15秒）
     if (isSaturday()) {
       try {
         const { start, end, dates } = getWeekDates(today);

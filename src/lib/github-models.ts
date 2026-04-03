@@ -340,13 +340,31 @@ export async function generateNovelArticle(
   };
 }
 
-// --- 深層分析（GitHub Models版、1記事ずつ並列） ---
+// --- 深層分析（GitHub Models版、3記事ずつ順次バッチ） ---
+const DEEP_CHUNK = 3;
+
 export async function batchDeepAnalyze(
-  articles: { title: string; source: string; published: string; region: string; summary: string }[]
+  articles: { title: string; source: string; published: string; region: string; summary: string }[],
+  timeLimitMs = 40000,
 ): Promise<(DeepAnalysis | null)[]> {
-  // 全記事を並列でリクエスト
-  const promises = articles.map((a) => deepAnalyzeSingle(a));
-  return Promise.all(promises);
+  const results: (DeepAnalysis | null)[] = new Array(articles.length).fill(null);
+  const start = Date.now();
+
+  for (let i = 0; i < articles.length; i += DEEP_CHUNK) {
+    // 残り時間チェック（安全マージン5秒）
+    if (Date.now() - start > timeLimitMs) {
+      console.log(`Deep analysis time limit reached at ${i}/${articles.length}`);
+      break;
+    }
+    const chunk = articles.slice(i, i + DEEP_CHUNK);
+    const chunkResults = await Promise.all(
+      chunk.map((a) => deepAnalyzeSingle(a))
+    );
+    for (let j = 0; j < chunkResults.length; j++) {
+      results[i + j] = chunkResults[j];
+    }
+  }
+  return results;
 }
 
 async function deepAnalyzeSingle(
