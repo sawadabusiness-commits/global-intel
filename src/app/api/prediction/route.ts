@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { savePrediction, getAllPredictions, updatePrediction } from "@/lib/kv";
 import type { Prediction } from "@/lib/types";
 
+export const maxDuration = 10;
+
 export async function GET() {
   try {
     const predictions = await getAllPredictions();
