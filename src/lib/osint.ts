@@ -594,3 +594,60 @@ export function detectAnomalies(
 
   return anomalies;
 }
+
+// ============================================================
+// Hacker News Show HN — 今週の注目ITサービス（APIキー不要）
+// ============================================================
+const HN_BASE = "https://hacker-news.firebaseio.com/v0";
+
+export interface ShowHNItem {
+  id: number;
+  title: string;
+  url: string;
+  score: number;
+  by: string;
+  time: number;
+  comments: number;
+}
+
+export async function fetchShowHN(daysBack = 7, limit = 15): Promise<ShowHNItem[]> {
+  try {
+    const res = await fetch(`${HN_BASE}/showstories.json`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+    const ids: number[] = await res.json();
+
+    const cutoff = Date.now() / 1000 - daysBack * 86400;
+
+    // 上位50件の詳細を並列取得してフィルタ
+    const top = ids.slice(0, 50);
+    const details = await Promise.all(
+      top.map(async (id) => {
+        try {
+          const r = await fetch(`${HN_BASE}/item/${id}.json`, {
+            signal: AbortSignal.timeout(5000),
+          });
+          if (!r.ok) return null;
+          return r.json();
+        } catch { return null; }
+      })
+    );
+
+    return details
+      .filter((d): d is any => d !== null && d.time >= cutoff && d.url)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((d) => ({
+        id: d.id,
+        title: (d.title ?? "").replace(/^Show HN:\s*/i, ""),
+        url: d.url ?? "",
+        score: d.score ?? 0,
+        by: d.by ?? "",
+        time: d.time ?? 0,
+        comments: d.descendants ?? 0,
+      }));
+  } catch {
+    return [];
+  }
+}

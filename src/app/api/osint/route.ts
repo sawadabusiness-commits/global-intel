@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchAllGdeltData, fetchAllDataSources, detectAnomalies } from "@/lib/osint";
+import { fetchAllGdeltData, fetchAllDataSources, detectAnomalies, fetchShowHN } from "@/lib/osint";
 import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive, batchDeepAnalyze } from "@/lib/github-models";
 import {
   getArticles, getLatestDate, saveArticles,
@@ -181,9 +181,11 @@ export async function GET(req: NextRequest) {
               const themeArticles = allArticles.filter(
                 (a) => a.primary_theme === themeId || a.cross_themes.includes(themeId)
               );
+              const showHN = await fetchShowHN(7, 15).catch(() => []);
               const report = await generateWeeklyDeepDive(
                 theme.labelJa,
-                themeArticles.map((a) => ({ title_ja: a.title_ja, summary_ja: a.summary_ja, published: a.published }))
+                themeArticles.map((a) => ({ title_ja: a.title_ja, summary_ja: a.summary_ja, published: a.published })),
+                showHN,
               );
               const deepDive: WeeklyDeepDive = {
                 id: `dd-${end}`, week_start: start, week_end: end,

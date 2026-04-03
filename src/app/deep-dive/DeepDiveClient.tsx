@@ -116,6 +116,32 @@ export default function DeepDiveClient({ deepDive }: Props) {
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{report.japan_implications}</p>
         </Section>
 
+        {/* 今週の注目ITサービス */}
+        {report.notable_services && report.notable_services.length > 0 && (
+          <Section title="Notable IT Services This Week">
+            <div className="space-y-3">
+              {report.notable_services.map((s, i) => (
+                <div key={i} className="p-3 rounded-lg" style={{ background: "var(--surface-2)" }}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <a
+                      href={s.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium hover:text-[#38BDF8] transition-colors"
+                    >
+                      {s.name} →
+                    </a>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: "#F59E0B20", color: "#F59E0B" }}>
+                      ▲ {s.score}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--muted)] leading-relaxed">{s.description}</p>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
         {/* 来週の注目点 */}
         <Section title="Watch Next Week">
           <ul className="space-y-2">

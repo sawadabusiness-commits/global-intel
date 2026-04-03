@@ -181,6 +181,7 @@ export interface WeeklyReport {
   scenarios: { name: string; probability: string; description: string }[];
   japan_implications: string;
   watch_next_week: string[];
+  notable_services?: { name: string; url: string; description: string; score: number }[];
 }
 
 // --- OSINT ---
