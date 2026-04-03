@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
 
+export const maxDuration = 30;
+
 export async function GET() {
   try {
     const results = await fetchAllThemes();
