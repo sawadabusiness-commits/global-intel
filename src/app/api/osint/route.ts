@@ -164,10 +164,11 @@ export async function GET(req: NextRequest) {
     }
 
     // 5. 土曜日: 週次ディープダイブも生成（~15秒）
-    if (isSaturday()) {
+    const forceWeekly = req.nextUrl.searchParams.get("force_weekly") === "1";
+    if (isSaturday() || forceWeekly) {
       try {
         const { start, end, dates } = getWeekDates(today);
-        const existing = await getWeeklyDeepDive(end);
+        const existing = forceWeekly ? null : await getWeeklyDeepDive(end);
         if (!existing) {
           const allArticles: AnalyzedArticle[] = [];
           for (const date of dates) {
