@@ -472,64 +472,69 @@ export async function fetchEStatData(): Promise<OsintDataPoint[]> {
 // ============================================================
 // e-Stat — 毎月勤労統計調査 賃金指数（事業所規模別）
 // ============================================================
-// statsDataId=0003450806 : 毎月勤労統計調査 全国 月次
-// cdCat01: 賃金種別（名目賃金指数=TL0901, 実質賃金指数=TL0902）
-// cdCat02: 事業所規模（全体=0, 500人以上=1, 100-499=2, 30-99=3, 5-29=4）
+// statsDataId=0003030976 : 毎月勤労統計調査 産業別賃金指数（現金給与総額）
+// 表章項目: 賃金指数（現金給与総額）、実質賃金指数（現金給与総額）
+// 事業所規模: 5人以上、30人以上
 export async function fetchEStatWages(): Promise<OsintDataPoint[]> {
   const apiKey = process.env.ESTAT_API_KEY;
   if (!apiKey) return [];
 
-  const queries: { cat01: string; cat02: string; label: string; indicator: string }[] = [
-    // 名目賃金指数
-    { cat01: "TL0901", cat02: "1", label: "名目賃金（大企業500人以上）", indicator: "wage_nominal_large" },
-    { cat01: "TL0901", cat02: "4", label: "名目賃金（中小企業5-29人）", indicator: "wage_nominal_small" },
-    // 実質賃金指数
-    { cat01: "TL0902", cat02: "1", label: "実質賃金（大企業500人以上）", indicator: "wage_real_large" },
-    { cat01: "TL0902", cat02: "4", label: "実質賃金（中小企業5-29人）", indicator: "wage_real_small" },
-  ];
-
   const results: OsintDataPoint[] = [];
 
-  for (const q of queries) {
-    try {
-      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003450806&cdCat01=${q.cat01}&cdCat02=${q.cat02}&limit=24&metaGetFlg=N&sectionHeaderFlg=1`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) continue;
-      const data = await res.json();
-
-      const status = data?.GET_STATS_DATA?.RESULT?.STATUS;
-      if (status && status !== 0) {
-        console.error(`e-Stat wage error (${q.indicator}): ${data?.GET_STATS_DATA?.RESULT?.ERROR_MSG}`);
-        continue;
-      }
-
-      const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-      if (!Array.isArray(values)) continue;
-
-      const points: OsintDataPoint[] = [];
-      for (const v of values) {
-        const raw = v["$"];
-        if (raw === undefined || raw === null || raw === "-" || raw === "…") continue;
-        const value = parseFloat(String(raw));
-        if (isNaN(value)) continue;
-        const timeCode = v["@time"] ?? "";
-        const date = parseEStatTime(String(timeCode));
-        points.push({
-          source: "estat", category: "macro",
-          indicator: q.indicator, label: q.label,
-          value, date, country: "JPN", unit: "指数",
-        });
-      }
-
-      // 最新12ヶ月分
-      points.sort((a, b) => b.date.localeCompare(a.date));
-      results.push(...points.slice(0, 12));
-    } catch (e) {
-      console.error(`e-Stat wage fetch error (${q.indicator}):`, e);
+  try {
+    // メタデータ取得なしで直接データ取得
+    // 調査産業計のみ（産業大中=TL1101）、最新24件
+    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&limit=100&metaGetFlg=Y&sectionHeaderFlg=1`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!res.ok) {
+      console.error(`e-Stat wage API error: ${res.status}`);
+      return [];
     }
-  }
+    const data = await res.json();
 
-  return results;
+    const status = data?.GET_STATS_DATA?.RESULT?.STATUS;
+    if (status && status !== 0) {
+      console.error(`e-Stat wage error: ${data?.GET_STATS_DATA?.RESULT?.ERROR_MSG}`);
+      // メタデータをログに出してカテゴリコードを確認
+      const classInfo = data?.GET_STATS_DATA?.STATISTICAL_DATA?.CLASS_INF?.CLASS_OBJ;
+      if (classInfo) {
+        for (const cls of Array.isArray(classInfo) ? classInfo : [classInfo]) {
+          console.log(`e-Stat wage CLASS: ${cls["@id"]} = ${cls["@name"]}`);
+          const items = cls?.CLASS;
+          if (Array.isArray(items)) {
+            for (const item of items.slice(0, 10)) {
+              console.log(`  ${item["@code"]}: ${item["@name"]}`);
+            }
+          }
+        }
+      }
+      return [];
+    }
+
+    // メタデータからカテゴリを確認
+    const classInfo = data?.GET_STATS_DATA?.STATISTICAL_DATA?.CLASS_INF?.CLASS_OBJ;
+    if (classInfo) {
+      for (const cls of Array.isArray(classInfo) ? classInfo : [classInfo]) {
+        console.log(`e-Stat wage CLASS: ${cls["@id"]} = ${cls["@name"]}`);
+        const items = cls?.CLASS;
+        if (Array.isArray(items)) {
+          for (const item of items.slice(0, 8)) {
+            console.log(`  ${item["@code"]}: ${item["@name"]}`);
+          }
+        }
+      }
+    }
+
+    const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+    if (!Array.isArray(values)) return [];
+
+    console.log(`e-Stat wage: ${values.length} values found, sample:`, JSON.stringify(values[0]).slice(0, 200));
+
+    return results;
+  } catch (e) {
+    console.error("e-Stat wage fetch error:", e);
+    return [];
+  }
 }
 
 // ============================================================
