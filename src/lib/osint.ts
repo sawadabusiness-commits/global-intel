@@ -472,27 +472,27 @@ export async function fetchEStatData(): Promise<OsintDataPoint[]> {
 // ============================================================
 // e-Stat — 毎月勤労統計調査 賃金指数（事業所規模別）
 // ============================================================
-// statsDataId=0003030976 : 毎月勤労統計調査 産業別賃金指数（現金給与総額）
-// tab: 803=名目賃金指数, 810=実質賃金前年比
-// cat01: 1000000=調査産業計
-// cat02: 700=5人以上, 800=30人以上
+// 毎月勤労統計調査 — 賃金指数（事業所規模別）
+// 0003030712: 名目賃金指数（500人以上/100-499/30-99/5-29）
+// 0003030713: 実質賃金指数（5人以上/30人以上）
 export async function fetchEStatWages(): Promise<OsintDataPoint[]> {
   const apiKey = process.env.ESTAT_API_KEY;
   if (!apiKey) return [];
 
-  const queries: { tab: string; cat02: string; label: string; indicator: string; unit: string }[] = [
-    { tab: "803", cat02: "700", label: "名目賃金指数（全規模5人以上）", indicator: "wage_nominal_all", unit: "指数" },
-    { tab: "803", cat02: "800", label: "名目賃金指数（中規模以上30人以上）", indicator: "wage_nominal_mid", unit: "指数" },
-    { tab: "810", cat02: "700", label: "実質賃金前年比（全規模5人以上）", indicator: "wage_real_all", unit: "%" },
-    { tab: "810", cat02: "800", label: "実質賃金前年比（中規模以上30人以上）", indicator: "wage_real_mid", unit: "%" },
+  const queries: { statsDataId: string; tab: string; cat02: string; cat03: string; label: string; indicator: string; unit: string }[] = [
+    // 名目賃金（現金給与総額）前年比
+    { statsDataId: "0003030712", tab: "741", cat02: "840", cat03: "002", label: "名目賃金前年比（大企業500人以上）", indicator: "wage_nominal_large", unit: "%" },
+    { statsDataId: "0003030712", tab: "741", cat02: "890", cat03: "002", label: "名目賃金前年比（中小企業5-29人）", indicator: "wage_nominal_small", unit: "%" },
+    // 実質賃金 前年比
+    { statsDataId: "0003030713", tab: "741", cat02: "700", cat03: "002", label: "実質賃金前年比（全規模5人以上）", indicator: "wage_real_all", unit: "%" },
+    { statsDataId: "0003030713", tab: "741", cat02: "800", cat03: "002", label: "実質賃金前年比（30人以上）", indicator: "wage_real_mid", unit: "%" },
   ];
 
   const results: OsintDataPoint[] = [];
 
   for (const q of queries) {
     try {
-      // 全件取得（月次データは約200件程度）
-      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&cdTab=${q.tab}&cdCat01=1000000&cdCat02=${q.cat02}&limit=1000&metaGetFlg=N&sectionHeaderFlg=1`;
+      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=${q.statsDataId}&cdTab=${q.tab}&cdCat01=1000000&cdCat02=${q.cat02}&cdCat03=${q.cat03}&limit=1000&metaGetFlg=N&sectionHeaderFlg=1`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) continue;
       const data = await res.json();
