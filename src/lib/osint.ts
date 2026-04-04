@@ -342,24 +342,25 @@ export async function fetchFRED(): Promise<OsintDataPoint[]> {
 
   const promises = FRED_SERIES.map(async (s) => {
     try {
-      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${s.id}&api_key=${apiKey}&file_type=json&limit=2&sort_order=desc`;
+      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${s.id}&api_key=${apiKey}&file_type=json&limit=12&sort_order=desc`;
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) return null;
+      if (!res.ok) return [];
       const data = await res.json();
-      const obs = data?.observations?.[0];
-      if (!obs || obs.value === ".") return null;
-      return {
-        source: "fred" as const, category: s.category,
-        indicator: s.id, label: s.label,
-        value: parseFloat(obs.value), date: obs.date,
-        country: "USA", unit: s.unit,
-      } satisfies OsintDataPoint;
-    } catch { return null; }
+      const observations = data?.observations ?? [];
+      return observations
+        .filter((obs: { value: string }) => obs.value !== ".")
+        .map((obs: { value: string; date: string }) => ({
+          source: "fred" as const, category: s.category,
+          indicator: s.id, label: s.label,
+          value: parseFloat(obs.value), date: obs.date,
+          country: "USA", unit: s.unit,
+        } satisfies OsintDataPoint));
+    } catch { return []; }
   });
 
   const results = await Promise.all(promises);
   const filtered: OsintDataPoint[] = [];
-  for (const r of results) { if (r) filtered.push(r); }
+  for (const r of results) filtered.push(...r);
   return filtered;
 }
 
