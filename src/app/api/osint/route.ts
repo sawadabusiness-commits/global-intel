@@ -3,7 +3,8 @@ import { fetchAllGdeltData, fetchAllDataSources, detectAnomalies, fetchShowHN } 
 import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive, batchDeepAnalyze } from "@/lib/github-models";
 import {
   getArticles, getLatestDate, saveArticles,
-  saveOsintSnapshot, saveOsintVerifications, saveOsintArticles,
+  saveOsintSnapshot, getOsintSnapshot, getLatestOsintDate,
+  saveOsintVerifications, saveOsintArticles,
   saveWeeklyDeepDive, getWeeklyDeepDive,
 } from "@/lib/kv";
 import { THEME_MAP } from "@/lib/themes";
@@ -54,10 +55,23 @@ export async function GET(req: NextRequest) {
 
   try {
     // 1. 全データソース並列取得（~5-10秒）
-    const [gdeltData, dataPoints] = await Promise.all([
+    const [gdeltData, freshDataPoints] = await Promise.all([
       fetchAllGdeltData(),
       fetchAllDataSources(),
     ]);
+
+    // 賃金データは週1取得のため、取れなかった日は前回スナップショットから引き継ぐ
+    let dataPoints = freshDataPoints;
+    const hasWageData = freshDataPoints.some((dp) => dp.indicator.startsWith("wage_"));
+    if (!hasWageData) {
+      const prevDate = await getLatestOsintDate();
+      if (prevDate) {
+        const prevSnapshot = await getOsintSnapshot(prevDate);
+        const prevWages = prevSnapshot?.data_points?.filter((dp) => dp.indicator.startsWith("wage_")) ?? [];
+        dataPoints = [...freshDataPoints, ...prevWages];
+      }
+    }
+
     const anomalies = detectAnomalies(gdeltData, dataPoints);
 
     const snapshot: OsintSnapshot = {

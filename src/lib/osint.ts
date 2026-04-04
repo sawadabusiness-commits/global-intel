@@ -698,7 +698,8 @@ export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
     fetchFRED().catch(() => [] as OsintDataPoint[]),
     fetchEDINET().catch(() => [] as OsintDataPoint[]),
     fetchEStatData().catch(() => [] as OsintDataPoint[]),
-    fetchEStatWages().catch(() => [] as OsintDataPoint[]),
+    // 賃金CSVは週1回（月曜）だけダウンロード。他の曜日は空配列（KVの前回データを使用）
+    (new Date().getDay() === 1 ? fetchEStatWages() : Promise.resolve([])).catch(() => [] as OsintDataPoint[]),
     fetchUSGSEarthquake().catch(() => [] as OsintDataPoint[]),
     fetchFAOFoodPrice().catch(() => [] as OsintDataPoint[]),
     fetchOpenSanctions().catch(() => [] as OsintDataPoint[]),
