@@ -286,7 +286,9 @@ export async function fetchOpenSanctions(): Promise<OsintDataPoint[]> {
     const data = await res.json();
     const datasets = data?.datasets ?? data;
 
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const today = jst.toISOString().split("T")[0];
     const results: OsintDataPoint[] = [];
 
     // 主要データセットの統計を取得
@@ -366,7 +368,9 @@ export async function fetchFRED(): Promise<OsintDataPoint[]> {
 // ============================================================
 export async function fetchEDINET(): Promise<OsintDataPoint[]> {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const today = jst.toISOString().split("T")[0];
     // type=2: 有価証券報告書等
     const url = `https://api.edinet-fsa.go.jp/api/v2/documents.json?date=${today}&type=2`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });

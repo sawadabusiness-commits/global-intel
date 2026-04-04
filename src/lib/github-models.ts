@@ -364,7 +364,9 @@ export async function generateNovelArticle(
   if (!jsonMatch) return null;
 
   const parsed = JSON.parse(jsonMatch[0]);
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const today = jst.toISOString().split("T")[0];
   return {
     id: `osint-${today}-${Date.now()}`,
     ...parsed,
