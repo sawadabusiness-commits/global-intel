@@ -320,12 +320,17 @@ export async function fetchOpenSanctions(): Promise<OsintDataPoint[]> {
 // ============================================================
 // FRED — 米国金融指標（FRED_API_KEY 必要）
 // ============================================================
-const FRED_SERIES: { id: string; label: string; category: OsintDataPoint["category"]; unit: string }[] = [
-  { id: "FEDFUNDS", label: "FF金利", category: "finance", unit: "%" },
-  { id: "DGS10", label: "米10年国債利回り", category: "finance", unit: "%" },
-  { id: "T10YIE", label: "10年BEI（期待インフレ率）", category: "price", unit: "%" },
-  { id: "UNRATE", label: "米国失業率", category: "macro", unit: "%" },
-  { id: "DTWEXBGS", label: "米ドル実効為替レート", category: "finance", unit: "指数" },
+const FRED_SERIES: { id: string; label: string; category: OsintDataPoint["category"]; unit: string; country?: string }[] = [
+  // 米国
+  { id: "FEDFUNDS", label: "FF金利", category: "finance", unit: "%", country: "USA" },
+  { id: "DGS10", label: "米10年国債利回り", category: "finance", unit: "%", country: "USA" },
+  { id: "T10YIE", label: "10年BEI（期待インフレ率）", category: "price", unit: "%", country: "USA" },
+  { id: "UNRATE", label: "米国失業率", category: "macro", unit: "%", country: "USA" },
+  { id: "DTWEXBGS", label: "米ドル実効為替レート", category: "finance", unit: "指数", country: "USA" },
+  // 日本
+  { id: "INTDSRJPM193N", label: "日銀政策金利", category: "finance", unit: "%", country: "JPN" },
+  { id: "IRLTLT01JPM156N", label: "日本10年国債利回り", category: "finance", unit: "%", country: "JPN" },
+  { id: "LRUNTTTTJPM156S", label: "日本失業率", category: "macro", unit: "%", country: "JPN" },
 ];
 
 export async function fetchFRED(): Promise<OsintDataPoint[]> {
@@ -345,7 +350,7 @@ export async function fetchFRED(): Promise<OsintDataPoint[]> {
           source: "fred" as const, category: s.category,
           indicator: s.id, label: s.label,
           value: parseFloat(obs.value), date: obs.date,
-          country: "USA", unit: s.unit,
+          country: s.country ?? "USA", unit: s.unit,
         } satisfies OsintDataPoint));
     } catch { return []; }
   });
@@ -462,6 +467,69 @@ export async function fetchEStatData(): Promise<OsintDataPoint[]> {
     console.error("e-Stat fetch error:", e);
     return [];
   }
+}
+
+// ============================================================
+// e-Stat — 毎月勤労統計調査 賃金指数（事業所規模別）
+// ============================================================
+// statsDataId=0003450806 : 毎月勤労統計調査 全国 月次
+// cdCat01: 賃金種別（名目賃金指数=TL0901, 実質賃金指数=TL0902）
+// cdCat02: 事業所規模（全体=0, 500人以上=1, 100-499=2, 30-99=3, 5-29=4）
+export async function fetchEStatWages(): Promise<OsintDataPoint[]> {
+  const apiKey = process.env.ESTAT_API_KEY;
+  if (!apiKey) return [];
+
+  const queries: { cat01: string; cat02: string; label: string; indicator: string }[] = [
+    // 名目賃金指数
+    { cat01: "TL0901", cat02: "1", label: "名目賃金（大企業500人以上）", indicator: "wage_nominal_large" },
+    { cat01: "TL0901", cat02: "4", label: "名目賃金（中小企業5-29人）", indicator: "wage_nominal_small" },
+    // 実質賃金指数
+    { cat01: "TL0902", cat02: "1", label: "実質賃金（大企業500人以上）", indicator: "wage_real_large" },
+    { cat01: "TL0902", cat02: "4", label: "実質賃金（中小企業5-29人）", indicator: "wage_real_small" },
+  ];
+
+  const results: OsintDataPoint[] = [];
+
+  for (const q of queries) {
+    try {
+      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003450806&cdCat01=${q.cat01}&cdCat02=${q.cat02}&limit=24&metaGetFlg=N&sectionHeaderFlg=1`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+
+      const status = data?.GET_STATS_DATA?.RESULT?.STATUS;
+      if (status && status !== 0) {
+        console.error(`e-Stat wage error (${q.indicator}): ${data?.GET_STATS_DATA?.RESULT?.ERROR_MSG}`);
+        continue;
+      }
+
+      const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+      if (!Array.isArray(values)) continue;
+
+      const points: OsintDataPoint[] = [];
+      for (const v of values) {
+        const raw = v["$"];
+        if (raw === undefined || raw === null || raw === "-" || raw === "…") continue;
+        const value = parseFloat(String(raw));
+        if (isNaN(value)) continue;
+        const timeCode = v["@time"] ?? "";
+        const date = parseEStatTime(String(timeCode));
+        points.push({
+          source: "estat", category: "macro",
+          indicator: q.indicator, label: q.label,
+          value, date, country: "JPN", unit: "指数",
+        });
+      }
+
+      // 最新12ヶ月分
+      points.sort((a, b) => b.date.localeCompare(a.date));
+      results.push(...points.slice(0, 12));
+    } catch (e) {
+      console.error(`e-Stat wage fetch error (${q.indicator}):`, e);
+    }
+  }
+
+  return results;
 }
 
 // ============================================================
@@ -601,18 +669,19 @@ export async function fetchGFWActivity(): Promise<OsintDataPoint[]> {
 // 全データソース並列取得
 // ============================================================
 export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
-  const [worldbank, fred, edinet, estat, usgs, fao, opensanctions, comtrade, gfw] = await Promise.all([
+  const [worldbank, fred, edinet, estat, wages, usgs, fao, opensanctions, comtrade, gfw] = await Promise.all([
     fetchWorldBankDirect().catch(() => [] as OsintDataPoint[]),
     fetchFRED().catch(() => [] as OsintDataPoint[]),
     fetchEDINET().catch(() => [] as OsintDataPoint[]),
     fetchEStatData().catch(() => [] as OsintDataPoint[]),
+    fetchEStatWages().catch(() => [] as OsintDataPoint[]),
     fetchUSGSEarthquake().catch(() => [] as OsintDataPoint[]),
     fetchFAOFoodPrice().catch(() => [] as OsintDataPoint[]),
     fetchOpenSanctions().catch(() => [] as OsintDataPoint[]),
     fetchUNComtrade().catch(() => [] as OsintDataPoint[]),
     fetchGFWActivity().catch(() => [] as OsintDataPoint[]),
   ]);
-  return [...worldbank, ...fred, ...edinet, ...estat, ...usgs, ...fao, ...opensanctions, ...comtrade, ...gfw];
+  return [...worldbank, ...fred, ...edinet, ...estat, ...wages, ...usgs, ...fao, ...opensanctions, ...comtrade, ...gfw];
 }
 
 // ============================================================
