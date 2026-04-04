@@ -195,7 +195,10 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
     usgs: "USGS", opensanctions: "OpenSanctions", edinet: "EDINET",
     comtrade: "UN Comtrade", gfw: "GFW",
   };
-  const countryLabels: Record<string, string> = { USA: "米", JPN: "日", CHN: "中", DEU: "独", IND: "印", BRA: "伯" };
+  const countryLabels: Record<string, string> = {
+    USA: "米", JPN: "日", CHN: "中", DEU: "独", IND: "印", BRA: "伯",
+    US: "米", JP: "日", CN: "中", DE: "独", IN: "印", BR: "伯",
+  };
 
   // indicatorでグループ化
   const byIndicator = new Map<string, OsintDataPoint[]>();
@@ -216,6 +219,7 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
   const charts: ChartData[] = [];
   const countryColors: Record<string, string> = {
     USA: "#3B82F6", JPN: "#EF4444", CHN: "#EAB308", DEU: "#22C55E", IND: "#A855F7", BRA: "#F97316",
+    US: "#3B82F6", JP: "#EF4444", CN: "#EAB308", DE: "#22C55E", IN: "#A855F7", BR: "#F97316",
   };
   const processedIndicators = new Set<string>();
 
