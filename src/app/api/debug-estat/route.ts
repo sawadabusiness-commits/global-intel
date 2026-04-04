@@ -13,51 +13,67 @@ export async function GET(req: NextRequest) {
 
   const results: Record<string, unknown> = {};
 
-  // テスト1: limit=50でそのまま取得
-  try {
-    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&cdTab=803&cdCat01=1000000&cdCat02=700&limit=50&metaGetFlg=N&sectionHeaderFlg=1`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-    const data = await res.json();
-    const status = data?.GET_STATS_DATA?.RESULT?.STATUS;
-    const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-    const totalNumber = data?.GET_STATS_DATA?.STATISTICAL_DATA?.TABLE_INF?.TOTAL_NUMBER
-      ?? data?.GET_STATS_DATA?.STATISTICAL_DATA?.RESULT_INF?.TOTAL_NUMBER;
-    results.test1_limit50 = {
-      status,
-      totalNumber,
-      valueCount: Array.isArray(values) ? values.length : 0,
-      firstTime: values?.[0]?.["@time"],
-      lastTime: values?.[values?.length - 1]?.["@time"],
-      firstValue: values?.[0]?.["$"],
-      lastValue: values?.[values?.length - 1]?.["$"],
-    };
-  } catch (e) { results.test1_error = String(e); }
+  // 毎月勤労統計の統計表を検索
+  const candidates = [
+    "0003145394", // 毎勤 長期時系列1
+    "0003145395",
+    "0003145396",
+    "0004027245", // 最近のID
+    "0004027246",
+    "0004027247",
+    "0003150100",
+    "0003150101",
+    "0003150102",
+  ];
 
-  // テスト2: limit=1000で取得
-  try {
-    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&cdTab=803&cdCat01=1000000&cdCat02=700&limit=1000&metaGetFlg=N&sectionHeaderFlg=1`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
-    const data = await res.json();
-    const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-    results.test2_limit1000 = {
-      valueCount: Array.isArray(values) ? values.length : 0,
-      lastTime: values?.[values?.length - 1]?.["@time"],
-      lastValue: values?.[values?.length - 1]?.["$"],
-    };
-  } catch (e) { results.test2_error = String(e); }
+  for (const id of candidates) {
+    try {
+      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=${id}&limit=3&metaGetFlg=Y`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) { results[id] = `HTTP ${res.status}`; continue; }
+      const data = await res.json();
+      const status = data?.GET_STATS_DATA?.RESULT?.STATUS;
+      if (status !== 0) { results[id] = `error: ${data?.GET_STATS_DATA?.RESULT?.ERROR_MSG}`; continue; }
 
-  // テスト3: startPosition=180で取得（最新部分）
+      const tableInf = data?.GET_STATS_DATA?.STATISTICAL_DATA?.TABLE_INF;
+      const classInfo = data?.GET_STATS_DATA?.STATISTICAL_DATA?.CLASS_INF?.CLASS_OBJ;
+      const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+
+      const classes: Record<string, string[]> = {};
+      if (Array.isArray(classInfo)) {
+        for (const cls of classInfo) {
+          const items = Array.isArray(cls.CLASS) ? cls.CLASS : [cls.CLASS].filter(Boolean);
+          classes[`${cls["@id"]}(${cls["@name"]})`] = items.slice(0, 5).map((i: { "@code": string; "@name": string }) => `${i["@code"]}:${i["@name"]}`);
+        }
+      }
+
+      results[id] = {
+        title: tableInf?.STAT_NAME?.["$"] ?? tableInf?.TITLE?.["$"] ?? "?",
+        tableTitle: tableInf?.TITLE?.["$"] ?? "?",
+        cycle: tableInf?.CYCLE ?? "?",
+        classes,
+        sampleTime: values?.[0]?.["@time"],
+      };
+    } catch (e) { results[id] = `timeout/error: ${String(e).slice(0, 100)}`; }
+  }
+
+  // getStatsList で毎月勤労統計を検索
   try {
-    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&cdTab=803&cdCat01=1000000&cdCat02=700&limit=50&startPosition=180&metaGetFlg=N&sectionHeaderFlg=1`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${apiKey}&searchWord=%E6%AF%8E%E6%9C%88%E5%8B%A4%E5%8A%B4%E7%B5%B1%E8%A8%88+%E8%B3%83%E9%87%91%E6%8C%87%E6%95%B0&limit=10&updatedDate=2025`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     const data = await res.json();
-    const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-    results.test3_start180 = {
-      valueCount: Array.isArray(values) ? values.length : 0,
-      firstTime: values?.[0]?.["@time"],
-      lastTime: values?.[values?.length - 1]?.["@time"],
-    };
-  } catch (e) { results.test3_error = String(e); }
+    const tables = data?.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
+    if (Array.isArray(tables)) {
+      results.search = tables.map((t: any) => ({
+        id: t["@id"],
+        title: t.TITLE?.["$"] ?? t.STAT_NAME?.["$"],
+        cycle: t.CYCLE,
+        updated: t.UPDATED_DATE,
+      }));
+    } else {
+      results.search = "no results";
+    }
+  } catch (e) { results.search_error = String(e).slice(0, 200); }
 
   return NextResponse.json(results);
 }
