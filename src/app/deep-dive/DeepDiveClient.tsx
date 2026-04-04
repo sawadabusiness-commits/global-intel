@@ -237,18 +237,44 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
     });
   }
 
-  // 2) FAO・CPI・GFW等（時系列折れ線）
-  const otherTimeSeries = ["wage_nominal_5", "wage_nominal_30", "wage_real_5", "wage_real_30", "fao_food_price", "fao_cereals", "fao_oils", "fao_meat", "fao_dairy", "fao_sugar", "cpi_total", "gfw_encounter", "gfw_loitering", "gfw_port_visit", "earthquake_m45_total"];
+  // 2a) 賃金データ（5人以上 vs 30人以上を色分け棒グラフで1つにまとめる）
+  const wagePairs: [string, string, string][] = [
+    ["wage_nominal_5", "wage_nominal_30", "名目賃金前年比"],
+    ["wage_real_5", "wage_real_30", "実質賃金前年比"],
+  ];
+  for (const [ind5, ind30, title] of wagePairs) {
+    const pts5 = byIndicator.get(ind5);
+    const pts30 = byIndicator.get(ind30);
+    if (!pts5 && !pts30) continue;
+    processedIndicators.add(ind5);
+    processedIndicators.add(ind30);
+
+    const sorted5 = [...(pts5 ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+    const sorted30 = [...(pts30 ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+    const allDates = [...new Set([...sorted5, ...sorted30].map((p) => p.date))].sort();
+    const dateMap5 = new Map(sorted5.map((p) => [p.date, p.value!]));
+    const dateMap30 = new Map(sorted30.map((p) => [p.date, p.value!]));
+
+    const multiLines = [
+      { country: "5人以上", color: "#3B82F6", points: allDates.map((d) => ({ label: d.slice(2, 7).replace("-", "/"), value: dateMap5.get(d) ?? NaN })) },
+      { country: "30人以上", color: "#F97316", points: allDates.map((d) => ({ label: d.slice(2, 7).replace("-", "/"), value: dateMap30.get(d) ?? NaN })) },
+    ];
+    charts.push({
+      label: title, source: "estat", unit: "%",
+      points: allDates.map((d) => ({ label: d.slice(2, 7).replace("-", "/"), value: 0 })),
+      isBar: false, multiLines,
+    });
+  }
+
+  // 2b) FAO・CPI・GFW等（時系列折れ線）
+  const otherTimeSeries = ["fao_food_price", "fao_cereals", "fao_oils", "fao_meat", "fao_dairy", "fao_sugar", "cpi_total", "gfw_encounter", "gfw_loitering", "gfw_port_visit", "earthquake_m45_total"];
   for (const ind of otherTimeSeries) {
     const points = byIndicator.get(ind);
     if (!points || points.length === 0) continue;
     processedIndicators.add(ind);
     const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
-    // 賃金データは規模情報（括弧内）を残す、それ以外は括弧を削除
-    const rawLabel = sorted[0].label;
-    const label = ind.startsWith("wage_") ? rawLabel : rawLabel.replace(/（.*）/, "");
     charts.push({
-      label, source: sorted[0].source, unit: sorted[0].unit ?? "",
+      label: sorted[0].label.replace(/（.*）/, ""), source: sorted[0].source, unit: sorted[0].unit ?? "",
       points: sorted.map((p) => ({ label: p.date.length >= 7 ? p.date.slice(2, 7).replace("-", "/") : p.date, value: p.value! })),
       isBar: false,
     });
