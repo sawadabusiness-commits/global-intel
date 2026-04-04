@@ -85,34 +85,26 @@ export async function fetchWorldBankDirect(): Promise<OsintDataPoint[]> {
 
   const promises = WB_INDICATORS.map(async (ind) => {
     try {
-      const url = `${WB_BASE}/country/${countryCodes}/indicator/${ind.id}?date=${currentYear - 3}:${currentYear}&format=json&per_page=100`;
+      const url = `${WB_BASE}/country/${countryCodes}/indicator/${ind.id}?date=${currentYear - 10}:${currentYear}&format=json&per_page=200`;
       const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) return [];
       const data = await res.json();
       const entries = data?.[1] ?? [];
 
-      // 国ごとに最新のnon-null値を取得
-      const byCountry = new Map<string, { date: string; value: number }>();
+      // 全年分のデータを返す（国×年の組み合わせ）
+      const points: OsintDataPoint[] = [];
       for (const e of entries) {
         if (e.value === null) continue;
         const cc = e.country?.id ?? "";
-        const existing = byCountry.get(cc);
-        if (!existing || e.date > existing.date) {
-          byCountry.set(cc, { date: e.date, value: e.value });
-        }
-      }
-
-      const points: OsintDataPoint[] = [];
-      for (const [cc, { date, value }] of byCountry) {
         points.push({
-          source: "dbnomics", // 互換性のため同じソース名を維持
+          source: "dbnomics",
           category: ind.category,
           indicator: ind.id,
           label: `${COUNTRY_LABELS[cc] ?? cc}${ind.label}`,
-          value,
-          date,
+          value: e.value,
+          date: e.date,
           country: cc,
-          unit: "%",
+          unit: ind.id === "MS.MIL.XPND.CD" ? "USD" : "%",
         });
       }
       return points;
