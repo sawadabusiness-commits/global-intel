@@ -238,7 +238,7 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
   }
 
   // 2) FAO・CPI・GFW等（時系列折れ線）
-  const otherTimeSeries = ["wage_nominal_large", "wage_nominal_small", "wage_real_large", "wage_real_small", "fao_food_price", "fao_cereals", "fao_oils", "fao_meat", "fao_dairy", "fao_sugar", "cpi_total", "gfw_encounter", "gfw_loitering", "gfw_port_visit", "earthquake_m45_total"];
+  const otherTimeSeries = ["wage_nominal_all", "wage_nominal_mid", "wage_real_all", "wage_real_mid", "fao_food_price", "fao_cereals", "fao_oils", "fao_meat", "fao_dairy", "fao_sugar", "cpi_total", "gfw_encounter", "gfw_loitering", "gfw_port_visit", "earthquake_m45_total"];
   for (const ind of otherTimeSeries) {
     const points = byIndicator.get(ind);
     if (!points || points.length === 0) continue;
