@@ -472,10 +472,81 @@ export async function fetchEStatData(): Promise<OsintDataPoint[]> {
 }
 
 // ============================================================
+// UN Comtrade — 国際貿易データ（APIキー不要、公開プレビュー）
+// ============================================================
+const COMTRADE_BASE = "https://comtradeapi.un.org/public/v1/preview/C/A/HS";
+
+// 主要品目: 原油(2709), LNG(2711), 半導体(8542), 鉄鋼(7206), 小麦(1001), 武器(9301)
+const COMTRADE_COMMODITIES: { code: string; label: string; category: OsintDataPoint["category"] }[] = [
+  { code: "2709", label: "原油", category: "trade" },
+  { code: "2711", label: "LNG", category: "trade" },
+  { code: "8542", label: "半導体", category: "trade" },
+  { code: "7206", label: "鉄鋼", category: "trade" },
+  { code: "1001", label: "小麦", category: "trade" },
+  { code: "9301", label: "武器・弾薬", category: "military" },
+];
+
+// 主要輸入国
+const COMTRADE_REPORTERS: { code: string; label: string }[] = [
+  { code: "842", label: "米国" },
+  { code: "392", label: "日本" },
+  { code: "156", label: "中国" },
+  { code: "276", label: "ドイツ" },
+  { code: "356", label: "インド" },
+];
+
+export async function fetchUNComtrade(): Promise<OsintDataPoint[]> {
+  const currentYear = new Date().getFullYear();
+  const results: OsintDataPoint[] = [];
+
+  // 年次データは遅れるため、前年と前々年を試行
+  for (const year of [currentYear - 1, currentYear - 2]) {
+    if (results.length > 0) break;
+
+    const promises = COMTRADE_COMMODITIES.map(async (commodity) => {
+      try {
+        const reporterCodes = COMTRADE_REPORTERS.map((r) => r.code).join(",");
+        const url = `${COMTRADE_BASE}?cmdCode=${commodity.code}&flowCode=M&period=${year}&reporterCode=${reporterCodes}&partnerCode=0&customsCode=C00&motCode=0`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const records = data?.data ?? [];
+
+        const points: OsintDataPoint[] = [];
+        for (const rec of records) {
+          const reporter = COMTRADE_REPORTERS.find((r) => r.code === String(rec.reporterCode));
+          if (!reporter) continue;
+          const value = rec.primaryValue ?? rec.cifvalue ?? rec.fobvalue;
+          if (!value) continue;
+          points.push({
+            source: "comtrade",
+            category: commodity.category,
+            indicator: `comtrade_${commodity.code}_${reporter.code}`,
+            label: `${reporter.label}${commodity.label}輸入額`,
+            value: Math.round(value / 1_000_000), // 百万USD
+            date: String(rec.period ?? year),
+            country: reporter.code,
+            unit: "百万USD",
+          });
+        }
+        return points;
+      } catch {
+        return [];
+      }
+    });
+
+    const allResults = await Promise.all(promises);
+    for (const r of allResults) results.push(...r);
+  }
+
+  return results;
+}
+
+// ============================================================
 // 全データソース並列取得
 // ============================================================
 export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
-  const [worldbank, fred, edinet, estat, usgs, fao, opensanctions] = await Promise.all([
+  const [worldbank, fred, edinet, estat, usgs, fao, opensanctions, comtrade] = await Promise.all([
     fetchWorldBankDirect().catch(() => [] as OsintDataPoint[]),
     fetchFRED().catch(() => [] as OsintDataPoint[]),
     fetchEDINET().catch(() => [] as OsintDataPoint[]),
@@ -483,8 +554,9 @@ export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
     fetchUSGSEarthquake().catch(() => [] as OsintDataPoint[]),
     fetchFAOFoodPrice().catch(() => [] as OsintDataPoint[]),
     fetchOpenSanctions().catch(() => [] as OsintDataPoint[]),
+    fetchUNComtrade().catch(() => [] as OsintDataPoint[]),
   ]);
-  return [...worldbank, ...fred, ...edinet, ...estat, ...usgs, ...fao, ...opensanctions];
+  return [...worldbank, ...fred, ...edinet, ...estat, ...usgs, ...fao, ...opensanctions, ...comtrade];
 }
 
 // ============================================================
