@@ -13,28 +13,35 @@ export async function GET(req: NextRequest) {
 
   const results: Record<string, unknown> = {};
 
-  // 賃金クエリを直接テスト
-  const wageTests = [
-    { id: "0003030712", tab: "741", cat02: "840", cat03: "002", name: "名目大企業" },
-    { id: "0003030712", tab: "741", cat02: "890", cat03: "002", name: "名目中小" },
-    { id: "0003030713", tab: "741", cat02: "700", cat03: "002", name: "実質全規模" },
-  ];
-  for (const t of wageTests) {
-    try {
-      const url2 = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=${t.id}&cdTab=${t.tab}&cdCat01=1000000&cdCat02=${t.cat02}&cdCat03=${t.cat03}&limit=5&metaGetFlg=N&sectionHeaderFlg=1`;
-      const res2 = await fetch(url2, { signal: AbortSignal.timeout(15000) });
-      const data2 = await res2.json();
-      const status = data2?.GET_STATS_DATA?.RESULT?.STATUS;
-      const errMsg = data2?.GET_STATS_DATA?.RESULT?.ERROR_MSG;
-      const values = data2?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-      results[`wage_${t.name}`] = {
-        status, errMsg,
-        valueCount: Array.isArray(values) ? values.length : 0,
-        sample: values?.[0],
-        last: values?.[values?.length - 1],
-      };
-    } catch (e) { results[`wage_${t.name}`] = String(e).slice(0, 100); }
-  }
+  // limit=1000テスト + startPositionテスト
+  try {
+    // まずlimit=1000で全件取得
+    const url2 = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030712&cdTab=741&cdCat01=1000000&cdCat02=840&cdCat03=002&limit=1000&metaGetFlg=N&sectionHeaderFlg=1`;
+    const res2 = await fetch(url2, { signal: AbortSignal.timeout(25000) });
+    const data2 = await res2.json();
+    const values = data2?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+    results.limit1000 = {
+      valueCount: Array.isArray(values) ? values.length : 0,
+      firstTime: values?.[0]?.["@time"],
+      lastTime: values?.[values?.length - 1]?.["@time"],
+      lastValue: values?.[values?.length - 1]?.["$"],
+    };
+  } catch (e) { results.limit1000 = `error: ${String(e).slice(0, 200)}`; }
+
+  // startPosition=190で末尾取得
+  try {
+    const url3 = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030712&cdTab=741&cdCat01=1000000&cdCat02=840&cdCat03=002&limit=50&startPosition=190&metaGetFlg=N&sectionHeaderFlg=1`;
+    const res3 = await fetch(url3, { signal: AbortSignal.timeout(15000) });
+    const data3 = await res3.json();
+    const values3 = data3?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+    results.start190 = {
+      status: data3?.GET_STATS_DATA?.RESULT?.STATUS,
+      valueCount: Array.isArray(values3) ? values3.length : 0,
+      firstTime: values3?.[0]?.["@time"],
+      lastTime: values3?.[values3?.length - 1]?.["@time"],
+      lastValue: values3?.[values3?.length - 1]?.["$"],
+    };
+  } catch (e) { results.start190 = `error: ${String(e).slice(0, 200)}`; }
 
   // getStatsList で毎月勤労統計を検索
   try {
