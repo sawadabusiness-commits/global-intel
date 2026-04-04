@@ -334,7 +334,7 @@ export async function fetchFRED(): Promise<OsintDataPoint[]> {
 
   const promises = FRED_SERIES.map(async (s) => {
     try {
-      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${s.id}&api_key=${apiKey}&file_type=json&limit=12&sort_order=desc`;
+      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${s.id}&api_key=${apiKey}&file_type=json&limit=12&sort_order=desc&frequency=m&aggregation_method=avg`;
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) return [];
       const data = await res.json();
