@@ -450,7 +450,7 @@ export async function fetchEStatData(): Promise<OsintDataPoint[]> {
       const date = parseEStatTime(String(timeCode));
       results.push({
         source: "estat", category: "price",
-        indicator: "cpi_total", label: "消費者物価指数（総合・全国）",
+        indicator: "cpi_total", label: "日本CPI（総合・全国）",
         value, date, country: "JPN", unit: "指数",
       });
     }
