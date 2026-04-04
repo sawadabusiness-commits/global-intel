@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
 
   // getStatsList で毎月勤労統計を検索
   try {
-    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${apiKey}&searchWord=%E6%AF%8E%E6%9C%88%E5%8B%A4%E5%8A%B4%E7%B5%B1%E8%A8%88&limit=20&surveyYears=2025`;
+    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${apiKey}&searchWord=%E6%AF%8E%E6%9C%88%E5%8B%A4%E5%8A%B4%E7%B5%B1%E8%A8%88+%E8%B3%83%E9%87%91&limit=20`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     const data = await res.json();
     const tables = data?.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
