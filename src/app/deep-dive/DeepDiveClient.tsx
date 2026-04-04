@@ -238,8 +238,11 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
     comtrade: "UN Comtrade", gfw: "GFW",
   };
 
+  // 最新データの日付を取得
+  const latestDate = data.reduce((max, dp) => dp.date > max ? dp.date : max, data[0]?.date ?? "");
+
   return (
-    <Section title="OSINT Data Dashboard">
+    <Section title={`OSINT Data Dashboard（${latestDate} 時点）`}>
       {/* 主要指標カード */}
       {keyIndicators.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -334,12 +337,16 @@ function MiniLineChart({ points, unit, color }: { points: { date: string; value:
         {points.map((p, i) => (
           <circle key={i} cx={getX(i)} cy={getY(p.value)} r="2.5" fill={i === points.length - 1 ? color : "var(--surface)"} stroke={color} strokeWidth="1.5" />
         ))}
-        {/* X軸ラベル */}
-        {points.filter((_, i) => i === 0 || i === points.length - 1 || (points.length > 5 && i === Math.floor(points.length / 2))).map((p, _, arr) => {
-          const idx = points.indexOf(p);
+        {/* X軸ラベル — 間引いて表示 */}
+        {points.map((p, i) => {
+          // 表示間隔: データ数に応じて間引く（最初・最後は必ず表示）
+          const step = points.length <= 6 ? 1 : points.length <= 12 ? 2 : 3;
+          if (i !== 0 && i !== points.length - 1 && i % step !== 0) return null;
+          // 年月形式で表示（"2026-01" → "26/01", "2025" → "2025"）
+          const label = p.date.length >= 7 ? p.date.slice(2, 7).replace("-", "/") : p.date;
           return (
-            <text key={idx} x={getX(idx)} y={H - 2} textAnchor="middle" fill="var(--muted)" fontSize="7" fontFamily="monospace">
-              {p.date.slice(5)}
+            <text key={i} x={getX(i)} y={H - 2} textAnchor="middle" fill="var(--muted)" fontSize="8" fontFamily="monospace">
+              {label}
             </text>
           );
         })}
