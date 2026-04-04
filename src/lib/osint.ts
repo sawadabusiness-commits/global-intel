@@ -328,7 +328,7 @@ const FRED_SERIES: { id: string; label: string; category: OsintDataPoint["catego
   { id: "UNRATE", label: "米国失業率", category: "macro", unit: "%", country: "USA" },
   { id: "DTWEXBGS", label: "米ドル実効為替レート", category: "finance", unit: "指数", country: "USA" },
   // 日本
-  { id: "INTDSRJPM193N", label: "日銀政策金利", category: "finance", unit: "%", country: "JPN" },
+  { id: "IRSTCI01JPM156N", label: "日本短期金利", category: "finance", unit: "%", country: "JPN" },
   { id: "IRLTLT01JPM156N", label: "日本10年国債利回り", category: "finance", unit: "%", country: "JPN" },
   { id: "LRUNTTTTJPM156S", label: "日本失業率", category: "macro", unit: "%", country: "JPN" },
 ];

@@ -224,7 +224,7 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
   const processedIndicators = new Set<string>();
 
   // 1) FRED指標（時系列折れ線）
-  const fredIndicators = ["FEDFUNDS", "INTDSRJPM193N", "DGS10", "IRLTLT01JPM156N", "T10YIE", "UNRATE", "LRUNTTTTJPM156S", "DTWEXBGS"];
+  const fredIndicators = ["FEDFUNDS", "IRSTCI01JPM156N", "DGS10", "IRLTLT01JPM156N", "T10YIE", "UNRATE", "LRUNTTTTJPM156S", "DTWEXBGS"];
   for (const ind of fredIndicators) {
     const points = byIndicator.get(ind);
     if (!points || points.length === 0) continue;
