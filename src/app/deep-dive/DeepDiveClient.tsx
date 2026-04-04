@@ -210,8 +210,13 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
     label: string; source: string; unit: string;
     points: { label: string; value: number }[];
     isBar: boolean;
+    // マルチライン用
+    multiLines?: { country: string; color: string; points: { label: string; value: number }[] }[];
   };
   const charts: ChartData[] = [];
+  const countryColors: Record<string, string> = {
+    USA: "#60A5FA", JPN: "#F87171", CHN: "#FBBF24", DEU: "#34D399", IND: "#A78BFA", BRA: "#FB923C",
+  };
   const processedIndicators = new Set<string>();
 
   // 1) FRED指標（時系列折れ線）
@@ -242,7 +247,7 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
     });
   }
 
-  // 3) World Bank指標（国別比較バー）
+  // 3) World Bank指標（国別色分け折れ線）
   const wbIndicators = ["NY.GDP.MKTP.KD.ZG", "FP.CPI.TOTL.ZG", "NE.TRD.GNFS.ZS", "BX.KLT.DINV.WD.GD.ZS", "MS.MIL.XPND.GD.ZS", "MS.MIL.XPND.CD"];
   const wbLabels: Record<string, string> = {
     "NY.GDP.MKTP.KD.ZG": "GDP成長率", "FP.CPI.TOTL.ZG": "CPI上昇率",
@@ -253,19 +258,30 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
     const points = byIndicator.get(wbInd);
     if (!points || points.length === 0) continue;
     processedIndicators.add(wbInd);
-    const byCountry = new Map<string, OsintDataPoint>();
+    // 国ごとに時系列データを構築
+    const byCountry = new Map<string, OsintDataPoint[]>();
     for (const p of points) {
-      const existing = byCountry.get(p.country ?? "");
-      if (!existing || p.date > existing.date) byCountry.set(p.country ?? "", p);
+      const cc = p.country ?? "";
+      const list = byCountry.get(cc) ?? [];
+      list.push(p);
+      byCountry.set(cc, list);
     }
-    const countryPoints = Array.from(byCountry.entries())
-      .map(([cc, p]) => ({ label: countryLabels[cc] ?? cc, value: p.value! }));
-    if (countryPoints.length > 0) {
-      charts.push({
-        label: wbLabels[wbInd] ?? wbInd, source: points[0].source, unit: points[0].unit ?? "",
-        points: countryPoints, isBar: true,
-      });
-    }
+    // 全年を集めてソート（X軸の共通ラベル）
+    const allYears = [...new Set(points.map((p) => p.date))].sort();
+    const multiLines = Array.from(byCountry.entries()).map(([cc, pts]) => {
+      const dateMap = new Map(pts.map((p) => [p.date, p.value!]));
+      return {
+        country: countryLabels[cc] ?? cc,
+        color: countryColors[cc] ?? "#999",
+        points: allYears.map((yr) => ({ label: yr, value: dateMap.get(yr) ?? NaN })),
+      };
+    });
+    // ダミーのpoints（X軸ラベル用）
+    const dummyPoints = allYears.map((yr) => ({ label: yr, value: 0 }));
+    charts.push({
+      label: wbLabels[wbInd] ?? wbInd, source: points[0].source, unit: points[0].unit ?? "",
+      points: dummyPoints, isBar: false, multiLines,
+    });
   }
 
   // 4) その他未処理（3点以上で時系列）
@@ -291,7 +307,7 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
               <p className="text-xs font-medium text-[#E2E8F0]">{ch.label}</p>
               <p className="text-[9px] text-[var(--muted)]">{sourceLabels[ch.source] ?? ch.source}</p>
             </div>
-            <MiniChart points={ch.points} unit={ch.unit} color={themeColor} isBar={ch.isBar} />
+            <MiniChart points={ch.points} unit={ch.unit} color={themeColor} isBar={ch.isBar} multiLines={ch.multiLines} />
           </div>
         ))}
       </div>
@@ -299,10 +315,16 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
   );
 }
 
-// --- SVGチャート（折れ線 or 棒） ---
-function MiniChart({ points, unit, color, isBar = false }: {
+// --- SVGチャート（折れ線 or 棒 or マルチライン） ---
+function MiniChart({ points, unit, color, isBar = false, multiLines }: {
   points: { label: string; value: number }[]; unit: string; color: string; isBar?: boolean;
+  multiLines?: { country: string; color: string; points: { label: string; value: number }[] }[];
 }) {
+  // マルチラインの場合は専用レンダリング
+  if (multiLines && multiLines.length > 0) {
+    return <MultiLineChart lines={multiLines} labels={points.map((p) => p.label)} unit={unit} />;
+  }
+
   const W = 280;
   const H = 90;
   const PAD = { top: 5, right: 10, bottom: 22, left: 45 };
@@ -398,6 +420,88 @@ function MiniChart({ points, unit, color, isBar = false }: {
           return (
             <text key={i} x={cx} y={H - 3} textAnchor="middle" fill="var(--muted)" fontSize="8" fontFamily="monospace">
               {p.label}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// --- 国別色分け折れ線グラフ ---
+function MultiLineChart({ lines, labels, unit }: {
+  lines: { country: string; color: string; points: { label: string; value: number }[] }[];
+  labels: string[]; unit: string;
+}) {
+  const W = 280;
+  const H = 110;
+  const PAD = { top: 5, right: 10, bottom: 22, left: 45 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom - 18; // 凡例分のスペース
+
+  // 全ラインの全値からmin/max
+  const allValues = lines.flatMap((l) => l.points.map((p) => p.value).filter((v) => !isNaN(v)));
+  if (allValues.length === 0) return null;
+  const minVal = Math.min(...allValues);
+  const maxVal = Math.max(...allValues);
+  const range = maxVal - minVal || 1;
+
+  const getX = (i: number) => PAD.left + (labels.length === 1 ? chartW / 2 : (i / (labels.length - 1)) * chartW);
+  const getY = (v: number) => PAD.top + chartH - ((v - minVal) / range) * chartH;
+
+  const fmtVal = (v: number) => {
+    if (Math.abs(v) >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(0)}B`;
+    if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(0)}M`;
+    if (Math.abs(v) >= 10_000) return `${(v / 1_000).toFixed(0)}k`;
+    return v < 10 && v > -10 ? v.toFixed(1) : v.toLocaleString();
+  };
+
+  return (
+    <div>
+      {/* 凡例 */}
+      <div className="flex flex-wrap gap-3 mb-2">
+        {lines.map((l) => (
+          <div key={l.country} className="flex items-center gap-1">
+            <span className="inline-block w-3 h-[2px]" style={{ background: l.color }} />
+            <span className="text-[10px] font-mono" style={{ color: l.color }}>{l.country}</span>
+          </div>
+        ))}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: "130px" }}>
+        {/* Y軸グリッド */}
+        {[0, 0.5, 1].map((pct) => {
+          const y = PAD.top + chartH * (1 - pct);
+          const val = minVal + range * pct;
+          return (
+            <g key={pct}>
+              <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="var(--border)" strokeWidth="0.5" strokeDasharray="2,2" />
+              <text x={PAD.left - 4} y={y + 3} textAnchor="end" fill="var(--muted)" fontSize="7" fontFamily="monospace">
+                {fmtVal(val)}
+              </text>
+            </g>
+          );
+        })}
+        {/* 各国の折れ線 */}
+        {lines.map((line) => {
+          const validPoints = line.points.map((p, i) => ({ i, value: p.value })).filter((p) => !isNaN(p.value));
+          if (validPoints.length < 2) return null;
+          const pathD = validPoints.map((p, idx) => `${idx === 0 ? "M" : "L"} ${getX(p.i).toFixed(1)} ${getY(p.value).toFixed(1)}`).join(" ");
+          return (
+            <g key={line.country}>
+              <path d={pathD} fill="none" stroke={line.color} strokeWidth="1.5" strokeLinejoin="round" opacity="0.8" />
+              {validPoints.map((p) => (
+                <circle key={p.i} cx={getX(p.i)} cy={getY(p.value)} r="2" fill={line.color} opacity="0.8" />
+              ))}
+            </g>
+          );
+        })}
+        {/* X軸ラベル */}
+        {labels.map((label, i) => {
+          const step = labels.length <= 6 ? 1 : labels.length <= 12 ? 2 : 3;
+          if (i !== 0 && i !== labels.length - 1 && i % step !== 0) return null;
+          return (
+            <text key={i} x={getX(i)} y={PAD.top + chartH + 14} textAnchor="middle" fill="var(--muted)" fontSize="8" fontFamily="monospace">
+              {label}
             </text>
           );
         })}
