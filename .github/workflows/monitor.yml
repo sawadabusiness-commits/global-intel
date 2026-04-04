@@ -39,6 +39,8 @@ jobs:
       - name: Create issue if unhealthy
         if: steps.check.outputs.status != 'ok'
         uses: actions/github-script@v7
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
         with:
           script: |
             const status = '${{ steps.check.outputs.status }}';
@@ -62,7 +64,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `⚠️ [${today}] ${status === 'down' ? 'サイト障害' : 'Cron未実行の可能性'}`,
-              body: `## 検知内容\n${message}\n\n## 確認手順\n1. ${secrets.APP_URL || 'サイト'} を開いて状態確認\n2. Vercelのデプロイログを確認\n3. 問題解決後このissueをクローズ`,
+              body: `## 検知内容\n${message}\n\n## 確認手順\n1. ${process.env.APP_URL || 'サイト'} を開いて状態確認\n2. Vercelのデプロイログを確認\n3. 問題解決後このissueをクローズ`,
               labels: ['monitor-alert'],
             });
 
