@@ -187,6 +187,7 @@ export async function GET(req: NextRequest) {
                 theme.labelJa,
                 themeArticles.map((a) => ({ title_ja: a.title_ja, summary_ja: a.summary_ja, published: a.published })),
                 showHN,
+                dataPoints,
               );
               const deepDive: WeeklyDeepDive = {
                 id: `dd-${end}`, week_start: start, week_end: end,
