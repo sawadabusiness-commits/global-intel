@@ -13,25 +13,27 @@ export async function GET(req: NextRequest) {
 
   const results: Record<string, unknown> = {};
 
-  // 候補テーブルのメタデータ確認
-  const checkIds = ["0003030712", "0003030713"];
-  for (const id of checkIds) {
+  // 賃金クエリを直接テスト
+  const wageTests = [
+    { id: "0003030712", tab: "741", cat02: "840", cat03: "002", name: "名目大企業" },
+    { id: "0003030712", tab: "741", cat02: "890", cat03: "002", name: "名目中小" },
+    { id: "0003030713", tab: "741", cat02: "700", cat03: "002", name: "実質全規模" },
+  ];
+  for (const t of wageTests) {
     try {
-      const url2 = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=${id}&limit=5&metaGetFlg=Y`;
+      const url2 = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=${t.id}&cdTab=${t.tab}&cdCat01=1000000&cdCat02=${t.cat02}&cdCat03=${t.cat03}&limit=5&metaGetFlg=N&sectionHeaderFlg=1`;
       const res2 = await fetch(url2, { signal: AbortSignal.timeout(15000) });
       const data2 = await res2.json();
-      const classInfo = data2?.GET_STATS_DATA?.STATISTICAL_DATA?.CLASS_INF?.CLASS_OBJ;
+      const status = data2?.GET_STATS_DATA?.RESULT?.STATUS;
+      const errMsg = data2?.GET_STATS_DATA?.RESULT?.ERROR_MSG;
       const values = data2?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-      const classes: Record<string, string[]> = {};
-      if (Array.isArray(classInfo)) {
-        for (const cls of classInfo) {
-          const items = Array.isArray(cls.CLASS) ? cls.CLASS : [cls.CLASS].filter(Boolean);
-          classes[`${cls["@id"]}(${cls["@name"]})`] = items.slice(0, 8).map((i: any) => `${i["@code"]}:${i["@name"]}`);
-        }
-      }
-      const totalNumber = data2?.GET_STATS_DATA?.STATISTICAL_DATA?.TABLE_INF?.TOTAL_NUMBER;
-      results[`meta_${id}`] = { totalNumber, classes, sampleValue: values?.[0] };
-    } catch (e) { results[`meta_${id}`] = String(e).slice(0, 100); }
+      results[`wage_${t.name}`] = {
+        status, errMsg,
+        valueCount: Array.isArray(values) ? values.length : 0,
+        sample: values?.[0],
+        last: values?.[values?.length - 1],
+      };
+    } catch (e) { results[`wage_${t.name}`] = String(e).slice(0, 100); }
   }
 
   // getStatsList で毎月勤労統計を検索
