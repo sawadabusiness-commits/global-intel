@@ -210,13 +210,13 @@ export async function generateWeeklyDeepDive(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: WEEKLY_DEEP_DIVE_PROMPT },
         { role: "user", content: userPrompt },
       ],
-      max_tokens: 8192,
-      temperature: 0.7,
+      max_tokens: 12000,
+      temperature: 0.5,
     }),
   });
 
