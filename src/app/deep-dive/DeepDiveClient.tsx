@@ -244,8 +244,11 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
     if (!points || points.length === 0) continue;
     processedIndicators.add(ind);
     const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
+    // 賃金データは規模情報（括弧内）を残す、それ以外は括弧を削除
+    const rawLabel = sorted[0].label;
+    const label = ind.startsWith("wage_") ? rawLabel : rawLabel.replace(/（.*）/, "");
     charts.push({
-      label: sorted[0].label.replace(/（.*）/, ""), source: sorted[0].source, unit: sorted[0].unit ?? "",
+      label, source: sorted[0].source, unit: sorted[0].unit ?? "",
       points: sorted.map((p) => ({ label: p.date.length >= 7 ? p.date.slice(2, 7).replace("-", "/") : p.date, value: p.value! })),
       isBar: false,
     });
