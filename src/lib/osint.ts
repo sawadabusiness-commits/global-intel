@@ -526,6 +526,9 @@ export async function fetchEStatWages(): Promise<OsintDataPoint[]> {
         // 月次データのみ（年次データはスキップ: "2024000000" → 月がない）
         if (timeCode.length < 10 || timeCode.slice(4, 10) === "000000") continue;
         const date = parseEStatTime(timeCode);
+        // 直近2年以内のデータのみ
+        const cutoffYear = new Date().getFullYear() - 2;
+        if (parseInt(date.slice(0, 4)) < cutoffYear) continue;
         points.push({
           source: "estat", category: "macro",
           indicator: q.indicator, label: q.label,
