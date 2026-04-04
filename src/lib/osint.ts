@@ -491,7 +491,9 @@ export async function fetchEStatWages(): Promise<OsintDataPoint[]> {
 
   for (const q of queries) {
     try {
-      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&cdTab=${q.tab}&cdCat01=1000000&cdCat02=${q.cat02}&limit=50&metaGetFlg=N&sectionHeaderFlg=1`;
+      // 直近2年分の月次データを取得（cdTimeFrom で開始時点を指定）
+      const fromYear = new Date().getFullYear() - 2;
+      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&cdTab=${q.tab}&cdCat01=1000000&cdCat02=${q.cat02}&cdTimeFrom=${fromYear}000101&limit=50&metaGetFlg=N&sectionHeaderFlg=1`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) continue;
       const data = await res.json();
