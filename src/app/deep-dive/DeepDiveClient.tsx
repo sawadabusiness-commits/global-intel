@@ -224,7 +224,7 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
   const processedIndicators = new Set<string>();
 
   // 1) FRED指標（時系列折れ線）
-  const fredIndicators = ["FEDFUNDS", "DGS10", "T10YIE", "UNRATE", "DTWEXBGS"];
+  const fredIndicators = ["FEDFUNDS", "INTDSRJPM193N", "DGS10", "IRLTLT01JPM156N", "T10YIE", "UNRATE", "LRUNTTTTJPM156S", "DTWEXBGS"];
   for (const ind of fredIndicators) {
     const points = byIndicator.get(ind);
     if (!points || points.length === 0) continue;
@@ -238,7 +238,7 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
   }
 
   // 2) FAO・CPI・GFW等（時系列折れ線）
-  const otherTimeSeries = ["fao_food_price", "fao_cereals", "fao_oils", "fao_meat", "fao_dairy", "fao_sugar", "cpi_total", "gfw_encounter", "gfw_loitering", "gfw_port_visit", "earthquake_m45_total"];
+  const otherTimeSeries = ["wage_nominal_large", "wage_nominal_small", "wage_real_large", "wage_real_small", "fao_food_price", "fao_cereals", "fao_oils", "fao_meat", "fao_dairy", "fao_sugar", "cpi_total", "gfw_encounter", "gfw_loitering", "gfw_port_visit", "earthquake_m45_total"];
   for (const ind of otherTimeSeries) {
     const points = byIndicator.get(ind);
     if (!points || points.length === 0) continue;
