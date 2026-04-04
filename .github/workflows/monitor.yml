@@ -1,0 +1,72 @@
+name: Health Monitor
+
+on:
+  schedule:
+    # 毎日 20:30 UTC (5:30 JST) — Cron(4:00)+OSINT(5:00)の後にチェック
+    - cron: "30 20 * * *"
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check site health
+        id: check
+        run: |
+          # サイトが応答するか
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.APP_URL }}")
+          echo "http_code=$HTTP_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "status=down" >> "$GITHUB_OUTPUT"
+            echo "message=サイトがHTTP ${HTTP_CODE}を返しています" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 今日の記事があるか（ページ内容を確認）
+          TODAY=$(date -u -d '+9 hours' +%Y-%m-%d)
+          BODY=$(curl -s "${{ secrets.APP_URL }}")
+
+          if echo "$BODY" | grep -q "$TODAY"; then
+            echo "status=ok" >> "$GITHUB_OUTPUT"
+            echo "message=正常: ${TODAY}の記事あり" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=stale" >> "$GITHUB_OUTPUT"
+            echo "message=${TODAY}の記事が見つかりません。Cronが失敗した可能性があります" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create issue if unhealthy
+        if: steps.check.outputs.status != 'ok'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ steps.check.outputs.status }}';
+            const message = '${{ steps.check.outputs.message }}';
+            const today = new Date().toISOString().split('T')[0];
+
+            // 同じ日の既存issueがあれば作らない
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'monitor-alert',
+            });
+            const alreadyReported = existing.data.some(i => i.title.includes(today));
+            if (alreadyReported) {
+              console.log('Already reported today');
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `⚠️ [${today}] ${status === 'down' ? 'サイト障害' : 'Cron未実行の可能性'}`,
+              body: `## 検知内容\n${message}\n\n## 確認手順\n1. ${secrets.APP_URL || 'サイト'} を開いて状態確認\n2. Vercelのデプロイログを確認\n3. 問題解決後このissueをクローズ`,
+              labels: ['monitor-alert'],
+            });
+
+      - name: Summary
+        run: |
+          echo "Status: ${{ steps.check.outputs.status }}"
+          echo "Message: ${{ steps.check.outputs.message }}"
