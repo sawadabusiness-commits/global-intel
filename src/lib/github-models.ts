@@ -162,6 +162,7 @@ export async function generateWeeklyDeepDive(
   themeLabelJa: string,
   articles: { title_ja: string; summary_ja: string; published: string }[],
   showHNItems: { title: string; url: string; score: number; comments: number }[] = [],
+  osintData: OsintDataPoint[] = [],
 ): Promise<WeeklyReport> {
   const articleList = articles
     .map(
@@ -171,6 +172,29 @@ export async function generateWeeklyDeepDive(
     .join("\n\n");
 
   let userPrompt = `テーマ「${themeLabelJa}」の今週の記事${articles.length}件を分析し、週次ディープダイブレポートを作成してください:\n\n${articleList}`;
+
+  if (osintData.length > 0) {
+    // ソース別にグループ化して見やすく整形
+    const bySource = new Map<string, OsintDataPoint[]>();
+    for (const dp of osintData) {
+      const list = bySource.get(dp.source) ?? [];
+      list.push(dp);
+      bySource.set(dp.source, list);
+    }
+    const osintLines: string[] = [];
+    for (const [source, points] of bySource) {
+      const sourceLabel: Record<string, string> = {
+        fred: "FRED（米国金融指標）", estat: "e-Stat（日本統計）", fao: "FAO（食料価格指数）",
+        dbnomics: "World Bank（マクロ経済）", usgs: "USGS（地震）", opensanctions: "OpenSanctions（制裁）",
+        edinet: "EDINET（有報）", comtrade: "UN Comtrade（国際貿易）", gfw: "Global Fishing Watch（海上活動）",
+      };
+      osintLines.push(`\n【${sourceLabel[source] ?? source}】`);
+      for (const dp of points.slice(0, 10)) {
+        osintLines.push(`  ${dp.label}: ${dp.value}${dp.unit ?? ""} (${dp.date})`);
+      }
+    }
+    userPrompt += `\n\n═══ 最新のOSINT定量データ ═══\n以下のデータを分析に必ず組み込み、具体的な数値を引用してください:\n${osintLines.join("\n")}`;
+  }
 
   if (showHNItems.length > 0) {
     const hnList = showHNItems
