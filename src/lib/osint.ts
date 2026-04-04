@@ -42,7 +42,10 @@ export async function fetchAllGdeltData(): Promise<GdeltToneData[]> {
         latest_tone: latest.tone, avg_tone_7d: avgTone,
         tone_change_pct: toneChange, is_anomaly: Math.abs(toneChange) > 50,
       } satisfies GdeltToneData;
-    } catch { return null; }
+    } catch (e) {
+      console.error(`GDELT fetch failed for ${theme}:`, e instanceof Error ? e.message : String(e));
+      return null;
+    }
   });
   const results = await Promise.all(promises);
   return results.filter((r): r is GdeltToneData => r !== null);
