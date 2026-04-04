@@ -504,7 +504,12 @@ export async function fetchEStatWages(): Promise<OsintDataPoint[]> {
       }
 
       const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-      if (!Array.isArray(values)) continue;
+      if (!Array.isArray(values)) {
+        console.error(`e-Stat wage (${q.indicator}): no VALUE array, keys:`, Object.keys(data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF ?? {}));
+        continue;
+      }
+
+      console.log(`e-Stat wage (${q.indicator}): ${values.length} raw values, first time: ${values[0]?.["@time"]}, last time: ${values[values.length-1]?.["@time"]}`);
 
       const points: OsintDataPoint[] = [];
       for (const v of values) {
