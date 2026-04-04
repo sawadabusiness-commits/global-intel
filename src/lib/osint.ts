@@ -543,10 +543,72 @@ export async function fetchUNComtrade(): Promise<OsintDataPoint[]> {
 }
 
 // ============================================================
+// Global Fishing Watch — 海上活動データ（GFW_API_KEY 必要）
+// ============================================================
+const GFW_BASE = "https://gateway.api.globalfishingwatch.org/v3";
+
+// 主要海域の監視ポイント
+const GFW_REGIONS: { label: string; lon: [number, number]; lat: [number, number] }[] = [
+  { label: "南シナ海", lon: [105, 120], lat: [5, 22] },
+  { label: "ペルシャ湾", lon: [48, 57], lat: [23, 30] },
+  { label: "東アフリカ沖", lon: [40, 55], lat: [-5, 15] },
+  { label: "北大西洋", lon: [-40, -10], lat: [40, 60] },
+];
+
+export async function fetchGFWActivity(): Promise<OsintDataPoint[]> {
+  const apiKey = process.env.GFW_API_KEY;
+  if (!apiKey) return [];
+
+  const today = new Date();
+  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const startDate = weekAgo.toISOString().split("T")[0];
+  const endDate = today.toISOString().split("T")[0];
+
+  const results: OsintDataPoint[] = [];
+
+  // イベント統計を取得（port_visit, encounter, loitering等）
+  const eventTypes = [
+    { type: "port_visit", label: "港湾訪問", dataset: "public-global-port-visits-c2-events:latest" },
+    { type: "loitering", label: "洋上待機（瀬取り疑い）", dataset: "public-global-loitering-events-carriers:latest" },
+    { type: "encounter", label: "洋上接触", dataset: "public-global-encounters-events:latest" },
+  ];
+
+  for (const et of eventTypes) {
+    try {
+      const url = `${GFW_BASE}/events?datasets[0]=${et.dataset}&start-date=${startDate}&end-date=${endDate}&limit=1&offset=0`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) {
+        console.error(`GFW ${et.type} error: ${res.status}`);
+        continue;
+      }
+      const data = await res.json();
+      const total = data?.total ?? data?.entries?.length ?? 0;
+
+      results.push({
+        source: "gfw",
+        category: "maritime",
+        indicator: `gfw_${et.type}`,
+        label: `${et.label}件数（直近7日）`,
+        value: total,
+        date: endDate,
+        unit: "件",
+      });
+    } catch (e) {
+      console.error(`GFW ${et.type} fetch failed:`, e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return results;
+}
+
+// ============================================================
 // 全データソース並列取得
 // ============================================================
 export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
-  const [worldbank, fred, edinet, estat, usgs, fao, opensanctions, comtrade] = await Promise.all([
+  const [worldbank, fred, edinet, estat, usgs, fao, opensanctions, comtrade, gfw] = await Promise.all([
     fetchWorldBankDirect().catch(() => [] as OsintDataPoint[]),
     fetchFRED().catch(() => [] as OsintDataPoint[]),
     fetchEDINET().catch(() => [] as OsintDataPoint[]),
@@ -555,8 +617,9 @@ export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
     fetchFAOFoodPrice().catch(() => [] as OsintDataPoint[]),
     fetchOpenSanctions().catch(() => [] as OsintDataPoint[]),
     fetchUNComtrade().catch(() => [] as OsintDataPoint[]),
+    fetchGFWActivity().catch(() => [] as OsintDataPoint[]),
   ]);
-  return [...worldbank, ...fred, ...edinet, ...estat, ...usgs, ...fao, ...opensanctions, ...comtrade];
+  return [...worldbank, ...fred, ...edinet, ...estat, ...usgs, ...fao, ...opensanctions, ...comtrade, ...gfw];
 }
 
 // ============================================================
@@ -653,6 +716,17 @@ export function detectAnomalies(
       detail: `FAO食料価格指数が${faoFood.value.toFixed(1)}（基準100、高水準）`,
       severity: faoFood.value > 170 ? "high" : "medium",
       current_value: faoFood.value, baseline_value: 100, change_pct: 0,
+    });
+  }
+
+  // GFW: 洋上待機（瀬取り疑い）が多い場合
+  const loitering = dataPoints.find((dp) => dp.indicator === "gfw_loitering");
+  if (loitering?.value !== null && loitering?.value !== undefined && loitering.value > 500) {
+    anomalies.push({
+      theme: "energy_resources", source: "gfw", type: "indicator_change",
+      detail: `洋上待機（瀬取り疑い）が直近7日で${loitering.value}件（高水準）`,
+      severity: loitering.value > 1000 ? "high" : "medium",
+      current_value: loitering.value, baseline_value: 300, change_pct: 0,
     });
   }
 
