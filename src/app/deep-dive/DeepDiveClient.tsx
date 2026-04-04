@@ -215,7 +215,7 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
   };
   const charts: ChartData[] = [];
   const countryColors: Record<string, string> = {
-    USA: "#60A5FA", JPN: "#F87171", CHN: "#FBBF24", DEU: "#34D399", IND: "#A78BFA", BRA: "#FB923C",
+    USA: "#3B82F6", JPN: "#EF4444", CHN: "#EAB308", DEU: "#22C55E", IND: "#A855F7", BRA: "#F97316",
   };
   const processedIndicators = new Set<string>();
 
@@ -433,11 +433,11 @@ function MultiLineChart({ lines, labels, unit }: {
   lines: { country: string; color: string; points: { label: string; value: number }[] }[];
   labels: string[]; unit: string;
 }) {
-  const W = 280;
-  const H = 110;
-  const PAD = { top: 5, right: 10, bottom: 22, left: 45 };
+  const W = 300;
+  const H = 150;
+  const PAD = { top: 8, right: 10, bottom: 22, left: 48 };
   const chartW = W - PAD.left - PAD.right;
-  const chartH = H - PAD.top - PAD.bottom - 18; // 凡例分のスペース
+  const chartH = H - PAD.top - PAD.bottom;
 
   // 全ラインの全値からmin/max
   const allValues = lines.flatMap((l) => l.points.map((p) => p.value).filter((v) => !isNaN(v)));
@@ -459,15 +459,15 @@ function MultiLineChart({ lines, labels, unit }: {
   return (
     <div>
       {/* 凡例 */}
-      <div className="flex flex-wrap gap-3 mb-2">
+      <div className="flex flex-wrap gap-3 mb-3">
         {lines.map((l) => (
-          <div key={l.country} className="flex items-center gap-1">
-            <span className="inline-block w-3 h-[2px]" style={{ background: l.color }} />
-            <span className="text-[10px] font-mono" style={{ color: l.color }}>{l.country}</span>
+          <div key={l.country} className="flex items-center gap-1.5">
+            <span className="inline-block w-5 h-[3px] rounded" style={{ background: l.color }} />
+            <span className="text-[11px] font-mono font-medium" style={{ color: l.color }}>{l.country}</span>
           </div>
         ))}
       </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: "130px" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: "180px" }}>
         {/* Y軸グリッド */}
         {[0, 0.5, 1].map((pct) => {
           const y = PAD.top + chartH * (1 - pct);
@@ -488,9 +488,9 @@ function MultiLineChart({ lines, labels, unit }: {
           const pathD = validPoints.map((p, idx) => `${idx === 0 ? "M" : "L"} ${getX(p.i).toFixed(1)} ${getY(p.value).toFixed(1)}`).join(" ");
           return (
             <g key={line.country}>
-              <path d={pathD} fill="none" stroke={line.color} strokeWidth="1.5" strokeLinejoin="round" opacity="0.8" />
+              <path d={pathD} fill="none" stroke={line.color} strokeWidth="2.5" strokeLinejoin="round" />
               {validPoints.map((p) => (
-                <circle key={p.i} cx={getX(p.i)} cy={getY(p.value)} r="2" fill={line.color} opacity="0.8" />
+                <circle key={p.i} cx={getX(p.i)} cy={getY(p.value)} r="3" fill={line.color} />
               ))}
             </g>
           );
