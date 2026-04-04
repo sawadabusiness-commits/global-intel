@@ -207,8 +207,8 @@ export interface OsintAnomaly {
 }
 
 export interface OsintDataPoint {
-  source: "dbnomics" | "fred" | "edinet" | "estat" | "usgs" | "fao" | "opensanctions";
-  category: "macro" | "conflict" | "finance" | "trade" | "filing" | "price" | "disaster" | "military" | "sanctions";
+  source: "dbnomics" | "fred" | "edinet" | "estat" | "usgs" | "fao" | "opensanctions" | "comtrade";
+  category: "macro" | "conflict" | "finance" | "trade" | "filing" | "price" | "disaster" | "military" | "sanctions" | "maritime";
   indicator: string;
   label: string;
   value: number | null;
