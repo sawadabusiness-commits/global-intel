@@ -472,72 +472,99 @@ export async function fetchEStatData(): Promise<OsintDataPoint[]> {
 // ============================================================
 // e-Stat — 毎月勤労統計調査 賃金指数（事業所規模別）
 // ============================================================
-// 毎月勤労統計調査 — 賃金指数（事業所規模別）
-// 0003030712: 名目賃金指数（500人以上/100-499/30-99/5-29）
-// 0003030713: 実質賃金指数（5人以上/30人以上）
-export async function fetchEStatWages(): Promise<OsintDataPoint[]> {
-  const apiKey = process.env.ESTAT_API_KEY;
-  if (!apiKey) return [];
+// 毎月勤労統計調査 — 賃金指数（e-StatのExcelファイルから直接取得）
+// 表7: 現金給与総額 指数及び増減率（5人以上）statInfId=000032189720
+// 表8: 現金給与総額 指数及び増減率（30人以上）statInfId=000032189721
+// 表25-1: 実質賃金（現金給与総額）指数及び増減率（5人以上）statInfId=000032189738
 
-  const queries: { statsDataId: string; tab: string; cat02: string; cat03: string; label: string; indicator: string; unit: string }[] = [
-    // 名目賃金（現金給与総額）前年比
-    { statsDataId: "0003030712", tab: "741", cat02: "840", cat03: "002", label: "名目賃金前年比（大企業500人以上）", indicator: "wage_nominal_large", unit: "%" },
-    { statsDataId: "0003030712", tab: "741", cat02: "890", cat03: "002", label: "名目賃金前年比（中小企業5-29人）", indicator: "wage_nominal_small", unit: "%" },
-    // 実質賃金 前年比
-    { statsDataId: "0003030713", tab: "741", cat02: "700", cat03: "002", label: "実質賃金前年比（全規模5人以上）", indicator: "wage_real_all", unit: "%" },
-    { statsDataId: "0003030713", tab: "741", cat02: "800", cat03: "002", label: "実質賃金前年比（30人以上）", indicator: "wage_real_mid", unit: "%" },
-  ];
+const WAGE_EXCEL_FILES: { statInfId: string; label: string; indicator: string }[] = [
+  { statInfId: "000032189720", label: "名目賃金前年比（5人以上）", indicator: "wage_nominal_5" },
+  { statInfId: "000032189721", label: "名目賃金前年比（30人以上）", indicator: "wage_nominal_30" },
+  { statInfId: "000032189738", label: "実質賃金前年比（5人以上）", indicator: "wage_real_5" },
+];
+
+export async function fetchEStatWages(): Promise<OsintDataPoint[]> {
+  let xlrd: any;
+  try {
+    // Node.jsではExcelパースにxlsxライブラリが必要だが、
+    // Vercel環境にはインストールされていない可能性があるため、
+    // ExcelをArrayBufferで取得してシンプルにパースする
+    // → 実際にはExcelのバイナリパースは複雑なので、
+    //   代わりにこのURLからCSV形式が取得できないか確認する
+  } catch { /* ignore */ }
 
   const results: OsintDataPoint[] = [];
 
-  for (const q of queries) {
+  for (const file of WAGE_EXCEL_FILES) {
     try {
-      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=${q.statsDataId}&cdTab=${q.tab}&cdCat01=1000000&cdCat02=${q.cat02}&cdCat03=${q.cat03}&limit=1000&metaGetFlg=N&sectionHeaderFlg=1`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      if (!res.ok) continue;
-      const data = await res.json();
-
-      const status = data?.GET_STATS_DATA?.RESULT?.STATUS;
-      if (status && status !== 0) {
-        console.error(`e-Stat wage error (${q.indicator}): ${data?.GET_STATS_DATA?.RESULT?.ERROR_MSG}`);
+      const url = `https://www.e-stat.go.jp/stat-search/file-download?statInfId=${file.statInfId}&fileKind=4`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!res.ok) {
+        console.error(`Wage Excel download failed (${file.indicator}): ${res.status}`);
         continue;
       }
 
-      const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-      if (!Array.isArray(values)) {
-        console.error(`e-Stat wage (${q.indicator}): no VALUE array, keys:`, Object.keys(data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF ?? {}));
+      const arrayBuffer = await res.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      // .xlsファイルの内容をテキストとして簡易パース
+      // TLシート（調査産業計）の前年比データ（行の後半部分）
+      // Excelバイナリの直接パースは困難なので、CSVダウンロードを試みる
+      // fileKind=2がCSV
+      const csvUrl = `https://www.e-stat.go.jp/stat-search/file-download?statInfId=${file.statInfId}&fileKind=2`;
+      const csvRes = await fetch(csvUrl, { signal: AbortSignal.timeout(15000) });
+      if (!csvRes.ok) {
+        console.error(`Wage CSV download failed (${file.indicator}): ${csvRes.status}`);
         continue;
       }
 
-      console.log(`e-Stat wage (${q.indicator}): ${values.length} raw values, first time: ${values[0]?.["@time"]}, last time: ${values[values.length-1]?.["@time"]}`);
+      const csvText = await csvRes.text();
+      const lines = csvText.split("\n");
 
-      const points: OsintDataPoint[] = [];
-      for (const v of values) {
-        const raw = v["$"];
-        if (raw === undefined || raw === null || raw === "-" || raw === "…") continue;
-        const value = parseFloat(String(raw));
-        if (isNaN(value)) continue;
-        const timeCode = String(v["@time"] ?? "");
-        // 月次データのみ（年次データはスキップ: "2024000000" → 月がない）
-        if (timeCode.length < 10 || timeCode.slice(4, 10) === "000000") continue;
-        const date = parseEStatTime(timeCode);
-        // 直近3年以内のデータのみ
-        if (parseInt(date.slice(0, 4)) < new Date().getFullYear() - 3) continue;
-        points.push({
-          source: "estat", category: "macro",
-          indicator: q.indicator, label: q.label,
-          value, date, country: "JPN", unit: q.unit,
-        });
+      // CSVの構造を確認するためログ出力
+      console.log(`Wage CSV (${file.indicator}): ${lines.length} lines, first: ${lines[0]?.slice(0, 100)}`);
+
+      // TLシートの最新年の月次データを探す
+      // 前年比の行を見つけて12ヶ月分を抽出
+      const currentYear = new Date().getFullYear();
+      for (const line of lines) {
+        const cols = line.split(",");
+        const yearStr = cols[0]?.trim();
+        const year = parseInt(yearStr);
+        if (isNaN(year) || year < currentYear - 1) continue;
+
+        // 列8-19が1月-12月（0ベースだと7-18）
+        for (let m = 0; m < 12; m++) {
+          const colIdx = 8 + m; // 1月=列8
+          const val = parseFloat(cols[colIdx]?.trim() ?? "");
+          if (isNaN(val)) continue;
+          const month = String(m + 1).padStart(2, "0");
+          results.push({
+            source: "estat", category: "macro",
+            indicator: file.indicator, label: file.label,
+            value: val, date: `${year}-${month}`,
+            country: "JPN", unit: "%",
+          });
+        }
       }
-
-      points.sort((a, b) => b.date.localeCompare(a.date));
-      results.push(...points.slice(0, 12));
     } catch (e) {
-      console.error(`e-Stat wage fetch error (${q.indicator}):`, e);
+      console.error(`Wage fetch error (${file.indicator}):`, e);
     }
   }
 
-  return results;
+  // 最新12ヶ月分に絞る（indicator別に）
+  const byIndicator = new Map<string, OsintDataPoint[]>();
+  for (const r of results) {
+    const list = byIndicator.get(r.indicator) ?? [];
+    list.push(r);
+    byIndicator.set(r.indicator, list);
+  }
+  const final: OsintDataPoint[] = [];
+  for (const [, points] of byIndicator) {
+    points.sort((a, b) => b.date.localeCompare(a.date));
+    final.push(...points.slice(0, 12));
+  }
+  return final;
 }
 
 // ============================================================
