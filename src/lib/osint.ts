@@ -491,8 +491,18 @@ export async function fetchEStatWages(): Promise<OsintDataPoint[]> {
 
   for (const q of queries) {
     try {
-      // 全件取得して月次データの最新12件を抽出
-      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&cdTab=${q.tab}&cdCat01=1000000&cdCat02=${q.cat02}&limit=500&metaGetFlg=N&sectionHeaderFlg=1`;
+      // 全件取得して月次データの最新12件を抽出（startPositionで末尾から取得）
+      // まず件数把握のため少量取得し、全体件数からstartPositionを算出
+      const countUrl = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&cdTab=${q.tab}&cdCat01=1000000&cdCat02=${q.cat02}&limit=1&metaGetFlg=N&sectionHeaderFlg=1&cntGetFlg=Y`;
+      const countRes = await fetch(countUrl, { signal: AbortSignal.timeout(8000) });
+      let startPos = 1;
+      if (countRes.ok) {
+        const countData = await countRes.json();
+        const total = countData?.GET_STATS_DATA?.STATISTICAL_DATA?.RESULT_INF?.TOTAL_NUMBER ?? 0;
+        // 末尾50件を取得（最新データは末尾にある）
+        startPos = Math.max(1, total - 49);
+      }
+      const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030976&cdTab=${q.tab}&cdCat01=1000000&cdCat02=${q.cat02}&limit=50&startPosition=${startPos}&metaGetFlg=N&sectionHeaderFlg=1`;
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) continue;
       const data = await res.json();
