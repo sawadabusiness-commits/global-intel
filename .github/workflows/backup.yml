@@ -1,0 +1,33 @@
+name: Weekly Backup
+
+on:
+  schedule:
+    # 毎週日曜 21:00 UTC (月曜 6:00 JST)
+    - cron: "0 21 * * 0"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch backup data
+        run: |
+          mkdir -p backups
+          DATE=$(date +%Y-%m-%d)
+          curl -s -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/backup" \
+            | jq . > "backups/backup-${DATE}.json"
+          echo "Backup saved: backup-${DATE}.json"
+          cat "backups/backup-${DATE}.json" | jq '{exported_at, predictions: (.predictions | length), has_deep_dive: (.latest_deep_dive != null)}'
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "weekly backup $(date +%Y-%m-%d)"
+          git push
