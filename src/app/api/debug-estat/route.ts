@@ -13,35 +13,38 @@ export async function GET(req: NextRequest) {
 
   const results: Record<string, unknown> = {};
 
-  // limit=1000テスト + startPositionテスト
+  // 賃金指数で最新データを持つテーブルを探す
+  // 産業分類改定ごとにIDが変わるので、searchで「賃金指数」を検索し最終更新が新しいものを取得
   try {
-    // まずlimit=1000で全件取得
-    const url2 = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030712&cdTab=741&cdCat01=1000000&cdCat02=840&cdCat03=002&limit=1000&metaGetFlg=N&sectionHeaderFlg=1`;
+    const url2 = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${apiKey}&searchWord=%E4%BA%8B%E6%A5%AD%E6%89%80%E8%A6%8F%E6%A8%A1%E5%88%A5%E8%B3%83%E9%87%91%E6%8C%87%E6%95%B0&limit=20`;
     const res2 = await fetch(url2, { signal: AbortSignal.timeout(25000) });
     const data2 = await res2.json();
-    const values = data2?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-    results.limit1000 = {
-      valueCount: Array.isArray(values) ? values.length : 0,
-      firstTime: values?.[0]?.["@time"],
-      lastTime: values?.[values?.length - 1]?.["@time"],
-      lastValue: values?.[values?.length - 1]?.["$"],
-    };
-  } catch (e) { results.limit1000 = `error: ${String(e).slice(0, 200)}`; }
+    const tables = data2?.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
+    if (Array.isArray(tables)) {
+      results.wage_search = tables.map((t: any) => ({
+        id: t["@id"],
+        title: t.TITLE?.["$"],
+        cycle: t.CYCLE,
+        updated: t.UPDATED_DATE,
+        surveyDate: t.SURVEY_DATE,
+      }));
+    }
+  } catch (e) { results.wage_search = String(e).slice(0, 200); }
 
-  // startPosition=190で末尾取得
+  // 実質賃金で検索
   try {
-    const url3 = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003030712&cdTab=741&cdCat01=1000000&cdCat02=840&cdCat03=002&limit=50&startPosition=190&metaGetFlg=N&sectionHeaderFlg=1`;
-    const res3 = await fetch(url3, { signal: AbortSignal.timeout(15000) });
+    const url3 = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsList?appId=${apiKey}&searchWord=%E5%AE%9F%E8%B3%AA%E8%B3%83%E9%87%91%E6%8C%87%E6%95%B0&limit=20`;
+    const res3 = await fetch(url3, { signal: AbortSignal.timeout(25000) });
     const data3 = await res3.json();
-    const values3 = data3?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-    results.start190 = {
-      status: data3?.GET_STATS_DATA?.RESULT?.STATUS,
-      valueCount: Array.isArray(values3) ? values3.length : 0,
-      firstTime: values3?.[0]?.["@time"],
-      lastTime: values3?.[values3?.length - 1]?.["@time"],
-      lastValue: values3?.[values3?.length - 1]?.["$"],
-    };
-  } catch (e) { results.start190 = `error: ${String(e).slice(0, 200)}`; }
+    const tables = data3?.GET_STATS_LIST?.DATALIST_INF?.TABLE_INF;
+    if (Array.isArray(tables)) {
+      results.real_wage_search = tables.map((t: any) => ({
+        id: t["@id"],
+        title: t.TITLE?.["$"],
+        updated: t.UPDATED_DATE,
+      }));
+    }
+  } catch (e) { results.real_wage_search = String(e).slice(0, 200); }
 
   // getStatsList で毎月勤労統計を検索
   try {
