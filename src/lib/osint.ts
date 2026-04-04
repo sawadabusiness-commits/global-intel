@@ -16,7 +16,7 @@ const THEME_QUERIES: [ThemeId, string][] = [
 
 async function fetchGdeltTone(query: string): Promise<{ date: string; tone: number }[]> {
   const url = `${GDELT_DOC_URL}?query=${encodeURIComponent(query)}&mode=timelinetone&timespan=14d&format=json`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
   if (!res.ok) throw new Error(`GDELT error ${res.status}`);
   const data = await res.json();
   const series = data?.timeline?.[0]?.series ?? [];
