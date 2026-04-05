@@ -244,6 +244,44 @@ export interface OsintArticle {
   generated_at: string;
 }
 
+// --- インテリジェンス・メモリ ---
+export interface KeyIndicatorTracker {
+  indicator: string;
+  source: string;
+  label: string;
+  current_value: number;
+  previous_value: number | null;
+  change: number | null;
+  change_pct: number | null;
+  trend: "rising" | "falling" | "stable";
+  history: { date: string; value: number }[];
+  first_seen: string;
+  last_updated: string;
+}
+
+export interface ThemeNarrative {
+  theme: ThemeId;
+  current_summary: string;
+  key_developments: string[];
+  dominant_trend: string;
+  last_updated: string;
+}
+
+export interface WeeklyMemorySummary {
+  week_end: string;
+  theme: ThemeId;
+  one_liner: string;
+  key_numbers: string[];
+}
+
+export interface IntelligenceMemory {
+  date: string;
+  version: number;
+  key_indicators: KeyIndicatorTracker[];
+  theme_narratives: Partial<Record<ThemeId, ThemeNarrative>>;
+  weekly_summaries: WeeklyMemorySummary[];
+}
+
 // --- Vercel KV のキー設計 ---
 // articles:{date}        → AnalyzedArticle[]
 // predictions:{id}       → Prediction
