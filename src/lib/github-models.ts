@@ -1,5 +1,5 @@
-import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT } from "./prompts";
-import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint } from "./types";
+import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT, MEMORY_UPDATE_PROMPT } from "./prompts";
+import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint, ThemeNarrative } from "./types";
 import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
@@ -163,6 +163,7 @@ export async function generateWeeklyDeepDive(
   articles: { title_ja: string; summary_ja: string; published: string }[],
   showHNItems: { title: string; url: string; score: number; comments: number }[] = [],
   osintData: OsintDataPoint[] = [],
+  memoryContext?: string,
 ): Promise<WeeklyReport> {
   const articleList = articles
     .map(
@@ -203,6 +204,10 @@ export async function generateWeeklyDeepDive(
     userPrompt += `\n\n【今週の注目ITサービス・プロダクト（Hacker News Show HN）】\n${hnList}`;
   }
 
+  if (memoryContext) {
+    userPrompt += `\n\n${memoryContext}`;
+  }
+
   const res = await fetch(GITHUB_MODELS_URL, {
     method: "POST",
     headers: {
@@ -239,6 +244,7 @@ export async function batchVerifyWithOsint(
   articles: { id: string; title_ja: string; summary_ja: string; primary_theme: ThemeId }[],
   gdeltData: GdeltToneData[],
   dataPoints: OsintDataPoint[] = [],
+  memoryContext?: string,
 ): Promise<OsintVerification[]> {
   const gdeltContext = gdeltData.map((d) =>
     `テーマ: ${d.theme} | 最新トーン: ${d.latest_tone.toFixed(2)} | 7日平均: ${d.avg_tone_7d.toFixed(2)} | 変化: ${d.tone_change_pct > 0 ? "+" : ""}${d.tone_change_pct.toFixed(1)}% | 異常: ${d.is_anomaly ? "YES" : "NO"}`
@@ -275,7 +281,10 @@ export async function batchVerifyWithOsint(
     `ID: ${a.id}\nテーマ: ${a.primary_theme}\nタイトル: ${a.title_ja}\n要約: ${a.summary_ja}`
   ).join("\n---\n");
 
-  const userPrompt = `【OSINTデータ（全ソース）】\n${osintContext}\n\n【検証対象記事】\n${articleList}`;
+  let userPrompt = `【OSINTデータ（全ソース）】\n${osintContext}\n\n【検証対象記事】\n${articleList}`;
+  if (memoryContext) {
+    userPrompt += `\n\n${memoryContext}`;
+  }
 
   const res = await fetch(GITHUB_MODELS_URL, {
     method: "POST",
@@ -310,7 +319,8 @@ export async function batchVerifyWithOsint(
 export async function generateNovelArticle(
   anomalies: OsintAnomaly[],
   gdeltData: GdeltToneData[],
-  dataPoints: OsintDataPoint[] = []
+  dataPoints: OsintDataPoint[] = [],
+  memoryContext?: string,
 ): Promise<OsintArticle | null> {
   if (anomalies.length === 0) return null;
 
@@ -338,6 +348,9 @@ export async function generateNovelArticle(
     userPrompt += `\n\n【関連する生データ（具体的な数値・地名を記事に必ず引用すること）】\n${dataText}`;
   }
   userPrompt += `\n\n【GDELTトーンデータ】\n${contextText}`;
+  if (memoryContext) {
+    userPrompt += `\n\n${memoryContext}`;
+  }
 
   const res = await fetch(GITHUB_MODELS_URL, {
     method: "POST",
@@ -374,12 +387,66 @@ export async function generateNovelArticle(
   };
 }
 
+// --- テーマナラティブ更新 ---
+export async function updateNarratives(
+  inputText: string,
+  today: string,
+  existingNarratives: Partial<Record<ThemeId, ThemeNarrative>>,
+): Promise<Partial<Record<ThemeId, ThemeNarrative>>> {
+  const res = await fetch(GITHUB_MODELS_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: MEMORY_UPDATE_PROMPT },
+        { role: "user", content: inputText },
+      ],
+      max_tokens: 2048,
+      temperature: 0.3,
+    }),
+  });
+
+  if (!res.ok) return existingNarratives;
+
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return existingNarratives;
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  const updated = { ...existingNarratives };
+
+  for (const t of parsed.themes ?? []) {
+    const existing = updated[t.theme as ThemeId];
+    // key_developmentsを既存と結合して直近5件に
+    const devs = [
+      ...(t.key_developments ?? []),
+      ...(existing?.key_developments ?? []),
+    ].slice(0, 5);
+
+    updated[t.theme as ThemeId] = {
+      theme: t.theme,
+      current_summary: t.current_summary ?? existing?.current_summary ?? "",
+      key_developments: devs,
+      dominant_trend: t.dominant_trend ?? existing?.dominant_trend ?? "",
+      last_updated: today,
+    };
+  }
+
+  return updated;
+}
+
 // --- 深層分析（GitHub Models版、3記事ずつ順次バッチ） ---
 const DEEP_CHUNK = 3;
 
 export async function batchDeepAnalyze(
-  articles: { title: string; source: string; published: string; region: string; summary: string }[],
+  articles: { title: string; source: string; published: string; region: string; summary: string; primary_theme?: string }[],
   timeLimitMs = 40000,
+  memoryContextFn?: (themeId: string) => string,
 ): Promise<(DeepAnalysis | null)[]> {
   const results: (DeepAnalysis | null)[] = new Array(articles.length).fill(null);
   const start = Date.now();
@@ -392,7 +459,10 @@ export async function batchDeepAnalyze(
     }
     const chunk = articles.slice(i, i + DEEP_CHUNK);
     const chunkResults = await Promise.all(
-      chunk.map((a) => deepAnalyzeSingle(a))
+      chunk.map((a) => {
+        const ctx = memoryContextFn && a.primary_theme ? memoryContextFn(a.primary_theme) : undefined;
+        return deepAnalyzeSingle(a, ctx);
+      })
     );
     for (let j = 0; j < chunkResults.length; j++) {
       results[i + j] = chunkResults[j];
@@ -402,9 +472,14 @@ export async function batchDeepAnalyze(
 }
 
 async function deepAnalyzeSingle(
-  article: { title: string; source: string; published: string; region: string; summary: string }
+  article: { title: string; source: string; published: string; region: string; summary: string },
+  memoryContext?: string,
 ): Promise<DeepAnalysis | null> {
   const articleText = `タイトル: ${article.title}\nソース: ${article.source}\n日付: ${article.published}\n地域: ${article.region}\n要約: ${article.summary}`;
+  let userPrompt = `以下の記事を分析してください:\n\n${articleText}`;
+  if (memoryContext) {
+    userPrompt += `\n\n${memoryContext}`;
+  }
 
   try {
     const res = await fetch(GITHUB_MODELS_URL, {
@@ -417,7 +492,7 @@ async function deepAnalyzeSingle(
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: `${DEEP_ANALYSIS_PROMPT}\n\n出力はJSON形式のみ。前文やバックティック不要。` },
-          { role: "user", content: `以下の記事を分析してください:\n\n${articleText}` },
+          { role: "user", content: userPrompt },
         ],
         max_tokens: 4096,
         temperature: 0.7,

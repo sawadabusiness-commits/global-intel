@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllGdeltData, fetchAllDataSources, detectAnomalies, fetchShowHN } from "@/lib/osint";
-import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive, batchDeepAnalyze } from "@/lib/github-models";
+import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive, batchDeepAnalyze, updateNarratives } from "@/lib/github-models";
 import {
   getArticles, getLatestDate, saveArticles,
   saveOsintSnapshot, getOsintSnapshot, getLatestOsintDate,
   saveOsintVerifications, saveOsintArticles,
   saveWeeklyDeepDive, getWeeklyDeepDive,
+  getMemory, saveMemory,
 } from "@/lib/kv";
 import { THEME_MAP } from "@/lib/themes";
+import { updateKeyIndicators, formatIndicatorContext, formatThemeContext, formatWeeklyContext, buildNarrativeUpdateInput, createEmptyMemory } from "@/lib/memory";
 import type { OsintSnapshot, OsintArticle, ThemeId, WeeklyDeepDive, AnalyzedArticle } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -55,7 +57,12 @@ export async function GET(req: NextRequest) {
   const today = jst.toISOString().split("T")[0];
   const result: Record<string, unknown> = { ok: true, date: today };
 
+  const startTime = Date.now();
+
   try {
+    // 0. メモリ読み込み（~50ms）
+    const memory = await getMemory();
+
     // 1. 全データソース並列取得（~5-10秒）
     const [gdeltData, freshDataPoints] = await Promise.all([
       fetchAllGdeltData(),
@@ -102,6 +109,7 @@ export async function GET(req: NextRequest) {
       const needsDeep = articles.filter((a) => !a.analysis);
       if (needsDeep.length > 0) {
         try {
+          const memoryCtxFn = memory ? (themeId: string) => formatThemeContext(memory, themeId as ThemeId) : undefined;
           const deepResults = await batchDeepAnalyze(
             needsDeep.map((a) => ({
               title: a.title_en,
@@ -109,8 +117,10 @@ export async function GET(req: NextRequest) {
               published: a.published,
               region: a.region,
               summary: a.summary_ja,
+              primary_theme: a.primary_theme,
             })),
             25000,
+            memoryCtxFn,
           );
           let backfilled = 0;
           const articleMap = new Map(articles.map((a) => [a.id, a]));
@@ -147,6 +157,7 @@ export async function GET(req: NextRequest) {
       const articles = await getArticles(latestDate);
       if (articles.length > 0) {
         try {
+          const indicatorCtx = memory ? formatIndicatorContext(memory.key_indicators) : undefined;
           const verifications = await batchVerifyWithOsint(
             articles.map((a) => ({
               id: a.id,
@@ -155,7 +166,8 @@ export async function GET(req: NextRequest) {
               primary_theme: a.primary_theme,
             })),
             gdeltData,
-            dataPoints
+            dataPoints,
+            indicatorCtx || undefined,
           );
           await saveOsintVerifications(latestDate, verifications);
           result.verified = verifications.length;
@@ -169,7 +181,8 @@ export async function GET(req: NextRequest) {
     // 4. アナリスト5: 異常値があれば独自記事生成（~10秒）
     if (anomalies.length > 0) {
       try {
-        const novelArticle = await generateNovelArticle(anomalies, gdeltData, dataPoints);
+        const novelCtx = memory ? formatIndicatorContext(memory.key_indicators) : undefined;
+        const novelArticle = await generateNovelArticle(anomalies, gdeltData, dataPoints, novelCtx || undefined);
         if (novelArticle) {
           await saveOsintArticles(today, [novelArticle]);
           result.novel_article = novelArticle.title;
@@ -199,11 +212,13 @@ export async function GET(req: NextRequest) {
                 (a) => a.primary_theme === themeId || a.cross_themes.includes(themeId)
               );
               const showHN = await fetchShowHN(7, 15).catch(() => []);
+              const weeklyCtx = memory ? formatWeeklyContext(memory.weekly_summaries) : undefined;
               const report = await generateWeeklyDeepDive(
                 theme.labelJa,
                 themeArticles.map((a) => ({ title_ja: a.title_ja, summary_ja: a.summary_ja, published: a.published })),
                 showHN,
                 dataPoints,
+                weeklyCtx || undefined,
               );
               const deepDive: WeeklyDeepDive = {
                 id: `dd-${end}`, week_start: start, week_end: end,
@@ -220,6 +235,66 @@ export async function GET(req: NextRequest) {
         console.error("Weekly deep dive failed:", e);
         result.deep_dive_error = String(e);
       }
+    }
+
+    // 6. インテリジェンス・メモリ更新
+    const elapsed = Date.now() - startTime;
+    const remainingMs = 55000 - elapsed;
+    if (remainingMs > 8000) {
+      try {
+        const currentMemory = memory ?? createEmptyMemory(today);
+
+        // Phase 1: 指標トラッカー更新（コード処理のみ）
+        const updatedIndicators = updateKeyIndicators(currentMemory, dataPoints, today);
+
+        // Phase 2: テーマナラティブ更新（AI 1回、残り時間が十分な場合のみ）
+        let updatedNarratives = currentMemory.theme_narratives;
+        const latestArticles = latestDate ? await getArticles(latestDate) : [];
+        if (remainingMs > 12000 && latestArticles.length > 0) {
+          const narrativeInput = buildNarrativeUpdateInput(
+            currentMemory,
+            latestArticles,
+            anomalies,
+            updatedIndicators,
+          );
+          updatedNarratives = await updateNarratives(narrativeInput, today, currentMemory.theme_narratives);
+        }
+
+        // 週次サマリー追記（土曜のみ）
+        let weeklySummaries = currentMemory.weekly_summaries;
+        if ((isSaturday() || forceWeekly) && result.deep_dive) {
+          const dd = result.deep_dive as { theme: string; articles: number };
+          weeklySummaries = [
+            {
+              week_end: today,
+              theme: pickTopTheme(latestArticles) ?? "geopolitics",
+              one_liner: dd.theme,
+              key_numbers: updatedIndicators
+                .filter((k) => k.change != null)
+                .slice(0, 3)
+                .map((k) => `${k.label}${k.current_value}`),
+            },
+            ...weeklySummaries,
+          ].slice(0, 4);
+        }
+
+        const updatedMemory = {
+          date: today,
+          version: currentMemory.version + 1,
+          key_indicators: updatedIndicators,
+          theme_narratives: updatedNarratives,
+          weekly_summaries: weeklySummaries,
+        };
+        await saveMemory(updatedMemory);
+        result.memory_updated = true;
+        result.memory_version = updatedMemory.version;
+        result.indicators_tracked = updatedIndicators.length;
+      } catch (e) {
+        console.error("Memory update failed:", e);
+        result.memory_error = String(e);
+      }
+    } else {
+      result.memory_skipped = `残り${remainingMs}ms、8秒未満のため���キップ`;
     }
 
     return NextResponse.json(result);

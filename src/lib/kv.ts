@@ -1,5 +1,5 @@
 import { kv } from "@vercel/kv";
-import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle } from "./types";
+import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory } from "./types";
 // Note: OsintSnapshot now uses unified data_points[] instead of separate worldbank/estat fields
 
 // --- 記事 ---
@@ -99,4 +99,15 @@ export async function getOsintArticles(date: string): Promise<OsintArticle[]> {
   const data = await kv.get<string>(`osint_articles:${date}`);
   if (!data) return [];
   return typeof data === "string" ? JSON.parse(data) : data;
+}
+
+// --- インテリジェンス・メモリ ---
+export async function getMemory(): Promise<IntelligenceMemory | null> {
+  const data = await kv.get<string>("memory:latest");
+  if (!data) return null;
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
+
+export async function saveMemory(memory: IntelligenceMemory) {
+  await kv.set("memory:latest", JSON.stringify(memory));
 }
