@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
               summary: a.summary_ja,
               primary_theme: a.primary_theme,
             })),
-            25000,
+            18000,
             memoryCtxFn,
           );
           let backfilled = 0;
@@ -250,7 +250,8 @@ export async function GET(req: NextRequest) {
         // Phase 2: テーマナラティブ更新（AI 1回、残り時間が十分な場合のみ）
         let updatedNarratives = currentMemory.theme_narratives;
         const latestArticles = latestDate ? await getArticles(latestDate) : [];
-        if (remainingMs > 12000 && latestArticles.length > 0) {
+        const narrativeRemaining = 55000 - (Date.now() - startTime);
+        if (narrativeRemaining > 10000 && latestArticles.length > 0) {
           const narrativeInput = buildNarrativeUpdateInput(
             currentMemory,
             latestArticles,
