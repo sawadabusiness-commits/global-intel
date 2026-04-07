@@ -694,10 +694,139 @@ export async function fetchGFWActivity(): Promise<OsintDataPoint[]> {
 }
 
 // ============================================================
+// UCDP — 武力紛争イベント（ウプサラ大学）
+// ============================================================
+const UCDP_BASE = "https://ucdpapi.pcr.uu.se/api";
+const UCDP_VERSION = "25.1";
+
+const UCDP_REGIONS = ["Africa", "Middle East", "Asia", "Europe", "Americas"] as const;
+const UCDP_VIOLENCE_TYPES: Record<number, string> = {
+  1: "国家間紛争",
+  2: "非国家紛争",
+  3: "一方的暴力",
+};
+
+export async function fetchUCDPConflicts(): Promise<OsintDataPoint[]> {
+  const token = process.env.UCDP_API_TOKEN;
+  if (!token) return [];
+
+  const results: OsintDataPoint[] = [];
+  const currentYear = new Date().getFullYear();
+  // GED 25.1は2024年まで。最新年を取得
+  const targetYear = Math.min(currentYear, 2024);
+
+  try {
+    // 直近年の全イベント件数と死者数を取得（ページ1件で TotalCount を利用）
+    const url = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&Year=${targetYear}`;
+    const res = await fetch(url, {
+      headers: { "x-ucdp-access-token": token },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      console.error(`UCDP gedevents error: ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    const totalEvents = data.TotalCount ?? 0;
+
+    results.push({
+      source: "ucdp",
+      category: "conflict",
+      indicator: "ucdp_events_total",
+      label: `武力紛争イベント総数（${targetYear}年）`,
+      value: totalEvents,
+      date: `${targetYear}`,
+      unit: "件",
+    });
+
+    // 地域別イベント数
+    for (const region of UCDP_REGIONS) {
+      const rUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&Year=${targetYear}&Region=${encodeURIComponent(region)}`;
+      const rRes = await fetch(rUrl, {
+        headers: { "x-ucdp-access-token": token },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!rRes.ok) continue;
+      const rData = await rRes.json();
+      results.push({
+        source: "ucdp",
+        category: "conflict",
+        indicator: `ucdp_events_${region.toLowerCase().replace(/\s/g, "_")}`,
+        label: `紛争イベント: ${region}（${targetYear}年）`,
+        value: rData.TotalCount ?? 0,
+        date: `${targetYear}`,
+        country: region,
+        unit: "件",
+      });
+    }
+
+    // 暴力タイプ別（1=国家間, 2=非国家, 3=一方的暴力）
+    for (const [typeId, typeLabel] of Object.entries(UCDP_VIOLENCE_TYPES)) {
+      const tUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&Year=${targetYear}&TypeOfViolence=${typeId}`;
+      const tRes = await fetch(tUrl, {
+        headers: { "x-ucdp-access-token": token },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!tRes.ok) continue;
+      const tData = await tRes.json();
+      results.push({
+        source: "ucdp",
+        category: "conflict",
+        indicator: `ucdp_violence_type_${typeId}`,
+        label: `${typeLabel}イベント数（${targetYear}年）`,
+        value: tData.TotalCount ?? 0,
+        date: `${targetYear}`,
+        unit: "件",
+      });
+    }
+
+    // 死者数サンプリング: 直近100件から集計
+    const sampleUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=100&Year=${targetYear}`;
+    const sampleRes = await fetch(sampleUrl, {
+      headers: { "x-ucdp-access-token": token },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (sampleRes.ok) {
+      const sampleData = await sampleRes.json();
+      const events = sampleData.Result ?? [];
+      const totalDeaths = events.reduce((sum: number, e: { best?: number }) => sum + (e.best ?? 0), 0);
+      const civilianDeaths = events.reduce((sum: number, e: { deaths_civilians?: number }) => sum + (e.deaths_civilians ?? 0), 0);
+
+      if (totalEvents > 0 && events.length > 0) {
+        // サンプルから年間推計
+        const ratio = totalEvents / events.length;
+        results.push({
+          source: "ucdp",
+          category: "conflict",
+          indicator: "ucdp_deaths_estimated",
+          label: `推定死者数（${targetYear}年、サンプル推計）`,
+          value: Math.round(totalDeaths * ratio),
+          date: `${targetYear}`,
+          unit: "人",
+        });
+        results.push({
+          source: "ucdp",
+          category: "conflict",
+          indicator: "ucdp_civilian_deaths_estimated",
+          label: `推定民間人死者数（${targetYear}年、サンプル推計）`,
+          value: Math.round(civilianDeaths * ratio),
+          date: `${targetYear}`,
+          unit: "人",
+        });
+      }
+    }
+  } catch (e) {
+    console.error("UCDP fetch failed:", e instanceof Error ? e.message : String(e));
+  }
+
+  return results;
+}
+
+// ============================================================
 // 全データソース並列取得
 // ============================================================
 export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
-  const [worldbank, fred, edinet, estat, wages, usgs, fao, opensanctions, comtrade, gfw] = await Promise.all([
+  const [worldbank, fred, edinet, estat, wages, usgs, fao, opensanctions, comtrade, gfw, ucdp] = await Promise.all([
     fetchWorldBankDirect().catch(() => [] as OsintDataPoint[]),
     fetchFRED().catch(() => [] as OsintDataPoint[]),
     fetchEDINET().catch(() => [] as OsintDataPoint[]),
@@ -709,8 +838,9 @@ export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
     fetchOpenSanctions().catch(() => [] as OsintDataPoint[]),
     fetchUNComtrade().catch(() => [] as OsintDataPoint[]),
     fetchGFWActivity().catch(() => [] as OsintDataPoint[]),
+    fetchUCDPConflicts().catch(() => [] as OsintDataPoint[]),
   ]);
-  return [...worldbank, ...fred, ...edinet, ...estat, ...wages, ...usgs, ...fao, ...opensanctions, ...comtrade, ...gfw];
+  return [...worldbank, ...fred, ...edinet, ...estat, ...wages, ...usgs, ...fao, ...opensanctions, ...comtrade, ...gfw, ...ucdp];
 }
 
 // ============================================================
@@ -818,6 +948,30 @@ export function detectAnomalies(
       detail: `洋上待機（瀬取り疑い）が直近7日で${loitering.value}件（高水準）`,
       severity: loitering.value > 1000 ? "high" : "medium",
       current_value: loitering.value, baseline_value: 300, change_pct: 0,
+    });
+  }
+
+  // UCDP: 紛争イベント数が前年比で急増（2024年のベースライン: 約28,000件）
+  const ucdpTotal = dataPoints.find((dp) => dp.indicator === "ucdp_events_total");
+  if (ucdpTotal?.value !== null && ucdpTotal?.value !== undefined && ucdpTotal.value > 35000) {
+    anomalies.push({
+      theme: "geopolitics", source: "ucdp", type: "conflict_spike",
+      detail: `武力紛争イベントが${ucdpTotal.value.toLocaleString()}件（通常約28,000件を大幅超過）`,
+      severity: ucdpTotal.value > 45000 ? "high" : "medium",
+      current_value: ucdpTotal.value, baseline_value: 28000,
+      change_pct: ((ucdpTotal.value - 28000) / 28000) * 100,
+    });
+  }
+
+  // UCDP: 一方的暴力（民間人への攻撃）が多い場合
+  const onesided = dataPoints.find((dp) => dp.indicator === "ucdp_violence_type_3");
+  if (onesided?.value !== null && onesided?.value !== undefined && onesided.value > 3000) {
+    anomalies.push({
+      theme: "geopolitics", source: "ucdp", type: "conflict_spike",
+      detail: `一方的暴力（民間人標的）が${onesided.value.toLocaleString()}件（高水準）`,
+      severity: onesided.value > 5000 ? "high" : "medium",
+      current_value: onesided.value, baseline_value: 2000,
+      change_pct: ((onesided.value - 2000) / 2000) * 100,
     });
   }
 

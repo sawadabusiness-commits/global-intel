@@ -193,7 +193,7 @@ function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeCol
   const sourceLabels: Record<string, string> = {
     fred: "FRED", estat: "e-Stat", fao: "FAO", dbnomics: "World Bank",
     usgs: "USGS", opensanctions: "OpenSanctions", edinet: "EDINET",
-    comtrade: "UN Comtrade", gfw: "GFW",
+    comtrade: "UN Comtrade", gfw: "GFW", ucdp: "UCDP",
   };
   const countryLabels: Record<string, string> = {
     USA: "米", JPN: "日", CHN: "中", DEU: "独", IND: "印", BRA: "伯",
