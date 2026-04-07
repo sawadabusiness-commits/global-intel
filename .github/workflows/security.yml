@@ -1,0 +1,140 @@
+name: Security Audit
+
+on:
+  schedule:
+    # 毎月1日 10:00 UTC (19:00 JST)
+    - cron: "0 10 1 * *"
+  workflow_dispatch:
+
+jobs:
+  security-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for leaked secrets in code
+        id: secrets
+        run: |
+          ISSUES=""
+
+          # .envファイルがコミットされていないか
+          if git ls-files | grep -qE '\.env$|\.env\.local$|\.env\.production$'; then
+            ISSUES="${ISSUES}\n- .envファイルがリポジトリに含まれています"
+          fi
+
+          # ハードコードされたAPIキーやトークンの検出
+          if grep -rn --include='*.ts' --include='*.tsx' --include='*.js' \
+            -E '(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36}|AIza[a-zA-Z0-9_-]{35}|pub_[a-f0-9]{32})' \
+            src/ 2>/dev/null; then
+            ISSUES="${ISSUES}\n- ソースコードにAPIキーがハードコードされている可能性"
+          fi
+
+          # process.env以外でのシークレット参照
+          if grep -rn --include='*.ts' --include='*.tsx' \
+            -E '(password|secret|token)\s*[:=]\s*["\x27][^"'\'']{8,}' \
+            src/ 2>/dev/null | grep -v 'process\.env' | grep -v '\.test\.' | grep -v 'node_modules'; then
+            ISSUES="${ISSUES}\n- シークレットが直接文字列で記述されている可能性"
+          fi
+
+          if [ -z "$ISSUES" ]; then
+            echo "status=ok" >> "$GITHUB_OUTPUT"
+            echo "message=シークレットの漏洩なし" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=warn" >> "$GITHUB_OUTPUT"
+            echo "message=${ISSUES}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check security middleware
+        id: middleware
+        run: |
+          ISSUES=""
+
+          # レートリミットの存在チェック
+          if ! find src/ -name 'middleware.ts' -o -name 'middleware.js' | grep -q .; then
+            ISSUES="${ISSUES}\n- middleware.ts が存在しません（レートリミット未実装の可能性）"
+          fi
+
+          # API routeの認証チェック
+          UNPROTECTED=0
+          for route in $(find src/app/api -name 'route.ts' 2>/dev/null); do
+            if ! grep -q 'authorization\|CRON_SECRET\|Bearer\|recaptcha\|reCAPTCHA' "$route"; then
+              ISSUES="${ISSUES}\n- 認証なし: ${route}"
+              UNPROTECTED=$((UNPROTECTED + 1))
+            fi
+          done
+
+          # 入力バリデーションライブラリの使用チェック
+          if ! grep -rq 'from "zod"\|from "yup"\|from "joi"' src/ 2>/dev/null; then
+            ISSUES="${ISSUES}\n- バリデーションライブラリ（zod等）未使用"
+          fi
+
+          if [ -z "$ISSUES" ]; then
+            echo "status=ok" >> "$GITHUB_OUTPUT"
+            echo "message=セキュリティミドルウェア正常" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=warn" >> "$GITHUB_OUTPUT"
+            echo "message=${ISSUES}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check dependencies for vulnerabilities
+        id: deps
+        run: |
+          npm audit --omit=dev 2>&1 | tail -5 > /tmp/audit.txt
+          if grep -q '0 vulnerabilities' /tmp/audit.txt; then
+            echo "status=ok" >> "$GITHUB_OUTPUT"
+            echo "message=脆弱性なし" >> "$GITHUB_OUTPUT"
+          else
+            AUDIT_RESULT=$(cat /tmp/audit.txt | tr '\n' ' ')
+            echo "status=warn" >> "$GITHUB_OUTPUT"
+            echo "message=${AUDIT_RESULT}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create issue if problems found
+        if: steps.secrets.outputs.status == 'warn' || steps.middleware.outputs.status == 'warn' || steps.deps.outputs.status == 'warn'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().split('T')[0];
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'security-audit',
+            });
+            const alreadyReported = existing.data.some(i => i.title.includes(today.slice(0, 7)));
+            if (alreadyReported) {
+              console.log('Already reported this month');
+              return;
+            }
+
+            let body = `## セキュリティ月次監査 (${today})\n\n`;
+
+            const sections = [
+              { name: 'シークレット漏洩チェック', status: '${{ steps.secrets.outputs.status }}', message: `${{ steps.secrets.outputs.message }}` },
+              { name: 'ミドルウェア・認証チェック', status: '${{ steps.middleware.outputs.status }}', message: `${{ steps.middleware.outputs.message }}` },
+              { name: '依存パッケージ脆弱性', status: '${{ steps.deps.outputs.status }}', message: `${{ steps.deps.outputs.message }}` },
+            ];
+
+            for (const s of sections) {
+              const icon = s.status === 'ok' ? '✅' : '⚠️';
+              body += `### ${icon} ${s.name}\n${s.message}\n\n`;
+            }
+
+            body += `## 対応手順\n1. 各警告項目を確認\n2. 必要に応じて修正\n3. 解決後このissueをクローズ`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🔒 [${today.slice(0, 7)}] セキュリティ月次監査`,
+              body,
+              labels: ['security-audit'],
+            });
+
+      - name: Summary
+        run: |
+          echo "=== Security Audit Results ==="
+          echo "Secrets: ${{ steps.secrets.outputs.status }} - ${{ steps.secrets.outputs.message }}"
+          echo "Middleware: ${{ steps.middleware.outputs.status }} - ${{ steps.middleware.outputs.message }}"
+          echo "Dependencies: ${{ steps.deps.outputs.status }} - ${{ steps.deps.outputs.message }}"
