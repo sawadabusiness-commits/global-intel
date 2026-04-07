@@ -716,19 +716,30 @@ export async function fetchUCDPConflicts(): Promise<OsintDataPoint[]> {
   const dateFilter = `StartDate=${targetYear}-01-01&EndDate=${targetYear}-12-31`;
 
   try {
-    // 直近年の全イベント件数を取得（ページ1件で TotalCount を利用）
-    const url = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&${dateFilter}`;
-    const res = await fetch(url, {
-      headers: { "x-ucdp-access-token": token },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) {
-      console.error(`UCDP gedevents error: ${res.status}`);
+    const headers = { "x-ucdp-access-token": token };
+    const baseUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}`;
+
+    // 全リクエストを並列実行（総数1 + タイプ別3 + サンプル1 = 5リクエスト同時）
+    const fetchJson = async (url: string) => {
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+      if (!res.ok) return null;
+      return res.json();
+    };
+
+    const [totalData, type1Data, type2Data, type3Data, sampleData] = await Promise.all([
+      fetchJson(`${baseUrl}?pagesize=1&${dateFilter}`),
+      fetchJson(`${baseUrl}?pagesize=1&${dateFilter}&TypeOfViolence=1`),
+      fetchJson(`${baseUrl}?pagesize=1&${dateFilter}&TypeOfViolence=2`),
+      fetchJson(`${baseUrl}?pagesize=1&${dateFilter}&TypeOfViolence=3`),
+      fetchJson(`${baseUrl}?pagesize=500&${dateFilter}`),
+    ]);
+
+    if (!totalData) {
+      console.error("UCDP gedevents: failed to fetch total");
       return [];
     }
-    const data = await res.json();
-    const totalEvents = data.TotalCount ?? 0;
 
+    const totalEvents = totalData.TotalCount ?? 0;
     results.push({
       source: "ucdp",
       category: "conflict",
@@ -739,34 +750,27 @@ export async function fetchUCDPConflicts(): Promise<OsintDataPoint[]> {
       unit: "件",
     });
 
-    // 暴力タイプ別（1=国家間, 2=非国家, 3=一方的暴力）— APIフィルタが効く
-    for (const [typeId, typeLabel] of Object.entries(UCDP_VIOLENCE_TYPES)) {
-      const tUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&${dateFilter}&TypeOfViolence=${typeId}`;
-      const tRes = await fetch(tUrl, {
-        headers: { "x-ucdp-access-token": token },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!tRes.ok) continue;
-      const tData = await tRes.json();
+    // 暴力タイプ別
+    const typeResults = [
+      { data: type1Data, id: 1, label: "国家間紛争" },
+      { data: type2Data, id: 2, label: "非国家紛争" },
+      { data: type3Data, id: 3, label: "一方的暴力" },
+    ];
+    for (const t of typeResults) {
+      if (!t.data) continue;
       results.push({
         source: "ucdp",
         category: "conflict",
-        indicator: `ucdp_violence_type_${typeId}`,
-        label: `${typeLabel}イベント数（${targetYear}年）`,
-        value: tData.TotalCount ?? 0,
+        indicator: `ucdp_violence_type_${t.id}`,
+        label: `${t.label}イベント数（${targetYear}年）`,
+        value: t.data.TotalCount ?? 0,
         date: `${targetYear}`,
         unit: "件",
       });
     }
 
-    // 500件サンプルから地域別集計＋死者数推計（Region APIフィルタは無効なため）
-    const sampleUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=500&${dateFilter}`;
-    const sampleRes = await fetch(sampleUrl, {
-      headers: { "x-ucdp-access-token": token },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (sampleRes.ok) {
-      const sampleData = await sampleRes.json();
+    // サンプルから地域別集計＋死者数推計
+    if (sampleData) {
       const events: { region?: string; best?: number; deaths_civilians?: number }[] = sampleData.Result ?? [];
       const sampleSize = events.length;
 
