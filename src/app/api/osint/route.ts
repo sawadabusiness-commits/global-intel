@@ -101,10 +101,14 @@ export async function GET(req: NextRequest) {
     result.data_sources = sourceCounts;
     result.total_data_points = dataPoints.length;
     result.anomalies = anomalies.length;
+    result.elapsed_after_fetch = Date.now() - startTime;
+
+    // ヘルパー: 残り時間チェック（maxDuration 60秒のうち安全マージン5秒）
+    const timeLeft = () => 55000 - (Date.now() - startTime);
 
     // 2. 深層分析補完: /api/cron で未完了の記事を補完（~20秒）
     const latestDate = await getLatestDate();
-    if (latestDate) {
+    if (latestDate && timeLeft() > 15000) {
       const articles = await getArticles(latestDate);
       const needsDeep = articles.filter((a) => !a.analysis);
       if (needsDeep.length > 0) {
@@ -153,7 +157,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 2.5 要約品質監査: バッチ要約の品質をチェックし修正（~5秒）
-    if (latestDate) {
+    if (latestDate && timeLeft() > 10000) {
       const articlesToAudit = await getArticles(latestDate);
       if (articlesToAudit.length > 0) {
         try {
@@ -198,7 +202,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. アナリスト4: 今日の記事をOSINTデータで検証（~10秒）
-    if (latestDate) {
+    if (latestDate && timeLeft() > 12000) {
       const articles = await getArticles(latestDate);
       if (articles.length > 0) {
         try {
@@ -224,7 +228,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 4. アナリスト5: 異常値があれば独自記事生成（~10秒）
-    if (anomalies.length > 0) {
+    if (anomalies.length > 0 && timeLeft() > 12000) {
       try {
         const novelCtx = memory ? formatIndicatorContext(memory.key_indicators) : undefined;
         const novelArticle = await generateNovelArticle(anomalies, gdeltData, dataPoints, novelCtx || undefined);
@@ -239,7 +243,7 @@ export async function GET(req: NextRequest) {
 
     // 5. 土曜日: 週次ディープダイブも生成（~15秒）
     const forceWeekly = req.nextUrl.searchParams.get("force_weekly") === "1";
-    if (isSaturday() || forceWeekly) {
+    if ((isSaturday() || forceWeekly) && timeLeft() > 18000) {
       try {
         const { start, end, dates } = getWeekDates(today);
         const existing = forceWeekly ? null : await getWeeklyDeepDive(end);
@@ -343,6 +347,7 @@ export async function GET(req: NextRequest) {
       result.memory_skipped = `残り${remainingMs}ms、8秒未満のため���キップ`;
     }
 
+    result.total_elapsed = Date.now() - startTime;
     return NextResponse.json(result);
   } catch (e) {
     console.error("OSINT cron error:", e);
