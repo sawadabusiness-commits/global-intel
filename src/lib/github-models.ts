@@ -1,8 +1,17 @@
-import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT, MEMORY_UPDATE_PROMPT } from "./prompts";
+import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT, MEMORY_UPDATE_PROMPT, SUMMARY_QUALITY_AUDIT_PROMPT } from "./prompts";
 import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint, ThemeNarrative } from "./types";
 import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
+
+// 有効なテーマID一覧（バリデーション用）
+const VALID_THEMES: Set<string> = new Set([
+  "geopolitics", "tech_society", "economic_policy", "emerging_markets",
+  "crime_drugs", "demographics", "energy_resources", "financial_system",
+  "food_supply", "space_cyber", "llm_api",
+]);
+
+const VALID_TIMEFRAMES: Set<string> = new Set(["short", "mid", "long"]);
 
 export interface BatchSummaryItem {
   article_id: string;
@@ -12,6 +21,32 @@ export interface BatchSummaryItem {
   cross_themes: ThemeId[];
   impact: ImpactLevel;
   timeframe: Timeframe;
+}
+
+/** バッチ要約の出力をバリデーションし、不正な項目を修正 or 除外 */
+function validateSummaries(items: BatchSummaryItem[]): BatchSummaryItem[] {
+  return items
+    .filter((item) => {
+      // 必須フィールドの存在チェック
+      if (!item.article_id || !item.title_ja || !item.summary_ja || !item.primary_theme) {
+        console.warn(`Dropped summary: missing required fields (id: ${item.article_id ?? "unknown"})`);
+        return false;
+      }
+      return true;
+    })
+    .map((item) => ({
+      ...item,
+      // テーマが無効なら geopolitics にフォールバック
+      primary_theme: (VALID_THEMES.has(item.primary_theme) ? item.primary_theme : "geopolitics") as ThemeId,
+      // cross_themes から無効なテーマを除外
+      cross_themes: (item.cross_themes ?? []).filter((t) => VALID_THEMES.has(t)) as ThemeId[],
+      // impact を 3-5 に制限
+      impact: (Math.max(3, Math.min(5, Math.round(item.impact ?? 3))) as ImpactLevel),
+      // timeframe が無効なら short にフォールバック
+      timeframe: (VALID_TIMEFRAMES.has(item.timeframe) ? item.timeframe : "short") as Timeframe,
+      // summary_ja が長すぎる場合は切り詰め
+      summary_ja: item.summary_ja.length > 500 ? item.summary_ja.slice(0, 497) + "…" : item.summary_ja,
+    }));
 }
 
 async function summarizeChunk(
@@ -67,7 +102,7 @@ article_id: ${a.article_id}
   if (!Array.isArray(parsed)) {
     throw new Error(`Expected array, got: ${JSON.stringify(parsed).slice(0, 200)}`);
   }
-  return parsed;
+  return validateSummaries(parsed);
 }
 
 const CHUNK_SIZE = 4;
@@ -85,6 +120,53 @@ export async function batchSummarize(
     chunks.map((chunk) => summarizeChunk(chunk).catch(() => [] as BatchSummaryItem[]))
   );
   return results.flat();
+}
+
+// --- 要約品質監査 ---
+export interface QualityAuditFix {
+  article_id: string;
+  issues: string[];
+  fix: {
+    title_ja: string | null;
+    summary_ja: string | null;
+    primary_theme: string | null;
+    impact: number | null;
+  };
+}
+
+export async function auditSummaryQuality(
+  articles: { id: string; title_en: string; description: string; title_ja: string; summary_ja: string; primary_theme: string; impact: number }[],
+): Promise<QualityAuditFix[]> {
+  if (articles.length === 0) return [];
+
+  const articleList = articles.map((a) =>
+    `ID: ${a.id}\n元タイトル(EN): ${a.title_en}\n元概要(EN): ${a.description}\n翻訳タイトル: ${a.title_ja}\n要約: ${a.summary_ja}\nテーマ: ${a.primary_theme}\nimpact: ${a.impact}`
+  ).join("\n---\n");
+
+  const res = await fetch(GITHUB_MODELS_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: SUMMARY_QUALITY_AUDIT_PROMPT },
+        { role: "user", content: `以下の${articles.length}件の要約を監査してください:\n\n${articleList}` },
+      ],
+      max_tokens: 2048,
+      temperature: 0.2,
+    }),
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content ?? "";
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return [];
+  return JSON.parse(jsonMatch[0]);
 }
 
 // --- 予測検証 ---

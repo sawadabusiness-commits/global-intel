@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllGdeltData, fetchAllDataSources, detectAnomalies, fetchShowHN } from "@/lib/osint";
-import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive, batchDeepAnalyze, updateNarratives } from "@/lib/github-models";
+import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive, batchDeepAnalyze, updateNarratives, auditSummaryQuality } from "@/lib/github-models";
 import {
   getArticles, getLatestDate, saveArticles,
   saveOsintSnapshot, getOsintSnapshot, getLatestOsintDate,
@@ -148,6 +148,51 @@ export async function GET(req: NextRequest) {
           result.deep_remaining = needsDeep.length - backfilled;
         } catch (e) {
           console.error("Deep analysis backfill failed:", e);
+        }
+      }
+    }
+
+    // 2.5 要約品質監査: バッチ要約の品質をチェックし修正（~5秒）
+    if (latestDate) {
+      const articlesToAudit = await getArticles(latestDate);
+      if (articlesToAudit.length > 0) {
+        try {
+          const auditInput = articlesToAudit.map((a) => ({
+            id: a.id,
+            title_en: a.title_en,
+            description: a.summary_ja,  // 元記事の概要がない場合は要約を使用
+            title_ja: a.title_ja,
+            summary_ja: a.summary_ja,
+            primary_theme: a.primary_theme,
+            impact: a.impact,
+          }));
+          const fixes = await auditSummaryQuality(auditInput);
+          if (fixes.length > 0) {
+            const fixMap = new Map(fixes.map((f) => [f.article_id, f]));
+            let fixed = 0;
+            for (const a of articlesToAudit) {
+              const fix = fixMap.get(a.id);
+              if (!fix) continue;
+              if (fix.fix.title_ja) a.title_ja = fix.fix.title_ja;
+              if (fix.fix.summary_ja) a.summary_ja = fix.fix.summary_ja;
+              if (fix.fix.primary_theme && THEME_MAP[fix.fix.primary_theme]) {
+                a.primary_theme = fix.fix.primary_theme as ThemeId;
+              }
+              if (fix.fix.impact && fix.fix.impact >= 3 && fix.fix.impact <= 5) {
+                a.impact = fix.fix.impact as 3 | 4 | 5;
+              }
+              fixed++;
+            }
+            if (fixed > 0) {
+              await saveArticles(latestDate, articlesToAudit);
+            }
+            result.quality_audit = { checked: articlesToAudit.length, fixed, issues: fixes.map((f) => f.issues).flat() };
+          } else {
+            result.quality_audit = { checked: articlesToAudit.length, fixed: 0, issues: [] };
+          }
+        } catch (e) {
+          console.error("Quality audit failed:", e);
+          result.quality_audit_error = String(e);
         }
       }
     }
