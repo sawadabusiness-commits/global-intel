@@ -270,6 +270,7 @@ export async function generateWeeklyDeepDive(
         fred: "FRED（米国金融指標）", estat: "e-Stat（日本統計）", fao: "FAO（食料価格指数）",
         dbnomics: "World Bank（マクロ経済）", usgs: "USGS（地震）", opensanctions: "OpenSanctions（制裁）",
         edinet: "EDINET（有報）", comtrade: "UN Comtrade（国際貿易）", gfw: "Global Fishing Watch（海上活動）",
+        ucdp: "UCDP（武力紛争データ）",
       };
       osintLines.push(`\n【${sourceLabel[source] ?? source}】`);
       for (const dp of points.slice(0, 10)) {
@@ -347,6 +348,7 @@ export async function batchVerifyWithOsint(
     usgs: "USGS（地震データ）",
     fao: "FAO（食料価格指数）",
     opensanctions: "OpenSanctions（制裁データ）",
+    ucdp: "UCDP（武力紛争データ）",
   };
 
   let extraContext = "";
