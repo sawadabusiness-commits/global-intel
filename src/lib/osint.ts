@@ -699,7 +699,6 @@ export async function fetchGFWActivity(): Promise<OsintDataPoint[]> {
 const UCDP_BASE = "https://ucdpapi.pcr.uu.se/api";
 const UCDP_VERSION = "25.1";
 
-const UCDP_REGIONS = ["Africa", "Middle East", "Asia", "Europe", "Americas"] as const;
 const UCDP_VIOLENCE_TYPES: Record<number, string> = {
   1: "国家間紛争",
   2: "非国家紛争",
@@ -714,10 +713,11 @@ export async function fetchUCDPConflicts(): Promise<OsintDataPoint[]> {
   const currentYear = new Date().getFullYear();
   // GED 25.1は2024年まで。最新年を取得
   const targetYear = Math.min(currentYear, 2024);
+  const dateFilter = `StartDate=${targetYear}-01-01&EndDate=${targetYear}-12-31`;
 
   try {
-    // 直近年の全イベント件数と死者数を取得（ページ1件で TotalCount を利用）
-    const url = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&Year=${targetYear}`;
+    // 直近年の全イベント件数を取得（ページ1件で TotalCount を利用）
+    const url = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&${dateFilter}`;
     const res = await fetch(url, {
       headers: { "x-ucdp-access-token": token },
       signal: AbortSignal.timeout(10000),
@@ -739,30 +739,9 @@ export async function fetchUCDPConflicts(): Promise<OsintDataPoint[]> {
       unit: "件",
     });
 
-    // 地域別イベント数
-    for (const region of UCDP_REGIONS) {
-      const rUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&Year=${targetYear}&Region=${encodeURIComponent(region)}`;
-      const rRes = await fetch(rUrl, {
-        headers: { "x-ucdp-access-token": token },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (!rRes.ok) continue;
-      const rData = await rRes.json();
-      results.push({
-        source: "ucdp",
-        category: "conflict",
-        indicator: `ucdp_events_${region.toLowerCase().replace(/\s/g, "_")}`,
-        label: `紛争イベント: ${region}（${targetYear}年）`,
-        value: rData.TotalCount ?? 0,
-        date: `${targetYear}`,
-        country: region,
-        unit: "件",
-      });
-    }
-
-    // 暴力タイプ別（1=国家間, 2=非国家, 3=一方的暴力）
+    // 暴力タイプ別（1=国家間, 2=非国家, 3=一方的暴力）— APIフィルタが効く
     for (const [typeId, typeLabel] of Object.entries(UCDP_VIOLENCE_TYPES)) {
-      const tUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&Year=${targetYear}&TypeOfViolence=${typeId}`;
+      const tUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=1&${dateFilter}&TypeOfViolence=${typeId}`;
       const tRes = await fetch(tUrl, {
         headers: { "x-ucdp-access-token": token },
         signal: AbortSignal.timeout(8000),
@@ -780,26 +759,50 @@ export async function fetchUCDPConflicts(): Promise<OsintDataPoint[]> {
       });
     }
 
-    // 死者数サンプリング: 直近100件から集計
-    const sampleUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=100&Year=${targetYear}`;
+    // 500件サンプルから地域別集計＋死者数推計（Region APIフィルタは無効なため）
+    const sampleUrl = `${UCDP_BASE}/gedevents/${UCDP_VERSION}?pagesize=500&${dateFilter}`;
     const sampleRes = await fetch(sampleUrl, {
       headers: { "x-ucdp-access-token": token },
       signal: AbortSignal.timeout(10000),
     });
     if (sampleRes.ok) {
       const sampleData = await sampleRes.json();
-      const events = sampleData.Result ?? [];
-      const totalDeaths = events.reduce((sum: number, e: { best?: number }) => sum + (e.best ?? 0), 0);
-      const civilianDeaths = events.reduce((sum: number, e: { deaths_civilians?: number }) => sum + (e.deaths_civilians ?? 0), 0);
+      const events: { region?: string; best?: number; deaths_civilians?: number }[] = sampleData.Result ?? [];
+      const sampleSize = events.length;
 
-      if (totalEvents > 0 && events.length > 0) {
-        // サンプルから年間推計
-        const ratio = totalEvents / events.length;
+      if (totalEvents > 0 && sampleSize > 0) {
+        const ratio = totalEvents / sampleSize;
+
+        // 地域別集計
+        const regionCounts = new Map<string, number>();
+        let totalDeaths = 0;
+        let civilianDeaths = 0;
+        for (const e of events) {
+          const r = e.region ?? "Unknown";
+          regionCounts.set(r, (regionCounts.get(r) ?? 0) + 1);
+          totalDeaths += e.best ?? 0;
+          civilianDeaths += e.deaths_civilians ?? 0;
+        }
+
+        for (const [region, count] of regionCounts) {
+          results.push({
+            source: "ucdp",
+            category: "conflict",
+            indicator: `ucdp_events_${region.toLowerCase().replace(/\s/g, "_")}`,
+            label: `紛争イベント推計: ${region}（${targetYear}年）`,
+            value: Math.round(count * ratio),
+            date: `${targetYear}`,
+            country: region,
+            unit: "件",
+          });
+        }
+
+        // 死者数推計
         results.push({
           source: "ucdp",
           category: "conflict",
           indicator: "ucdp_deaths_estimated",
-          label: `推定死者数（${targetYear}年、サンプル推計）`,
+          label: `推定死者数（${targetYear}年、サンプル${sampleSize}件から推計）`,
           value: Math.round(totalDeaths * ratio),
           date: `${targetYear}`,
           unit: "人",
@@ -808,7 +811,7 @@ export async function fetchUCDPConflicts(): Promise<OsintDataPoint[]> {
           source: "ucdp",
           category: "conflict",
           indicator: "ucdp_civilian_deaths_estimated",
-          label: `推定民間人死者数（${targetYear}年、サンプル推計）`,
+          label: `推定民間人死者数（${targetYear}年、サンプル${sampleSize}件から推計）`,
           value: Math.round(civilianDeaths * ratio),
           date: `${targetYear}`,
           unit: "人",
