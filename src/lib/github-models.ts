@@ -333,9 +333,21 @@ export async function batchVerifyWithOsint(
     `テーマ: ${d.theme} | 最新トーン: ${d.latest_tone.toFixed(2)} | 7日平均: ${d.avg_tone_7d.toFixed(2)} | 変化: ${d.tone_change_pct > 0 ? "+" : ""}${d.tone_change_pct.toFixed(1)}% | 異常: ${d.is_anomaly ? "YES" : "NO"}`
   ).join("\n");
 
-  // ソース別にデータポイントをグルーピング
-  const bySource = new Map<string, OsintDataPoint[]>();
+  // 各指標の最新値のみに圧縮（957件→~50件）
+  const latestByIndicator = new Map<string, OsintDataPoint>();
   for (const dp of dataPoints) {
+    if (dp.value === null) continue;
+    const key = `${dp.source}:${dp.indicator}:${dp.country ?? ""}`;
+    const existing = latestByIndicator.get(key);
+    if (!existing || dp.date > existing.date) {
+      latestByIndicator.set(key, dp);
+    }
+  }
+  const condensed = [...latestByIndicator.values()];
+
+  // ソース別にグルーピング
+  const bySource = new Map<string, OsintDataPoint[]>();
+  for (const dp of condensed) {
     if (!bySource.has(dp.source)) bySource.set(dp.source, []);
     bySource.get(dp.source)!.push(dp);
   }
@@ -343,11 +355,14 @@ export async function batchVerifyWithOsint(
   const sourceLabels: Record<string, string> = {
     dbnomics: "World Bank（マクロ経済・軍事費）",
     fred: "FRED（米国金融指標）",
+    boj: "日銀（短観・企業物価・M2・政策金利・国際収支）",
     edinet: "EDINET（日本有報）",
     estat: "e-Stat（日本統計）",
     usgs: "USGS（地震データ）",
     fao: "FAO（食料価格指数）",
     opensanctions: "OpenSanctions（制裁データ）",
+    comtrade: "UN Comtrade（国際貿易）",
+    gfw: "GFW（海上活動）",
     ucdp: "UCDP（武力紛争データ）",
   };
 
