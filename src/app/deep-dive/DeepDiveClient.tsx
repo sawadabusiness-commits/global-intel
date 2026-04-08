@@ -1,14 +1,15 @@
 "use client";
 
-import type { WeeklyDeepDive, OsintDataPoint } from "@/lib/types";
+import type { WeeklyDeepDive, OsintDataPoint, IntelligenceMemory, ThemeId } from "@/lib/types";
 import { THEME_MAP } from "@/lib/themes";
 
 interface Props {
   deepDive: WeeklyDeepDive | null;
   osintData?: OsintDataPoint[];
+  memory?: IntelligenceMemory | null;
 }
 
-export default function DeepDiveClient({ deepDive, osintData = [] }: Props) {
+export default function DeepDiveClient({ deepDive, osintData = [], memory = null }: Props) {
   if (!deepDive) {
     return (
       <div className="flex min-h-screen">
@@ -146,6 +147,51 @@ export default function DeepDiveClient({ deepDive, osintData = [] }: Props) {
           </Section>
         )}
 
+        {/* 施策5: テーマ横断ストーリー */}
+        {memory && Object.keys(memory.theme_narratives).length > 0 && (
+          <Section title="Cross-Theme Narrative">
+            <p className="text-xs text-[var(--muted)] mb-4">テーマを横断する因果チェーンとマクロストーリー</p>
+            <div className="space-y-3">
+              {Object.entries(memory.theme_narratives)
+                .filter(([, n]) => n && n.current_summary)
+                .map(([themeId, narrative]) => {
+                  const t = THEME_MAP[themeId as ThemeId];
+                  if (!t || !narrative) return null;
+                  return (
+                    <div key={themeId} className="p-3 rounded-lg" style={{ background: "var(--surface-2)", borderLeft: `3px solid ${t.color}` }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span style={{ color: t.color }}>{t.icon}</span>
+                        <span className="text-xs font-medium" style={{ color: t.color }}>{t.labelJa}</span>
+                        <span className="text-[10px] font-mono text-[var(--muted)] ml-auto">{narrative.dominant_trend}</span>
+                      </div>
+                      <p className="text-xs text-[#E2E8F0] leading-relaxed">{narrative.current_summary}</p>
+                      {narrative.key_developments.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {narrative.key_developments.slice(0, 3).map((d, i) => (
+                            <span key={i} className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: t.color + "15", color: t.color }}>
+                              {d.length > 40 ? d.substring(0, 40) + "…" : d}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          </Section>
+        )}
+
+        {/* 施策6: 因果チェーン可視化 */}
+        {report.cross_theme_impact.length > 0 && (
+          <Section title="Causal Chain">
+            <p className="text-xs text-[var(--muted)] mb-4">テーマ間の因果関係ネットワーク</p>
+            <CausalChainDiagram
+              centerTheme={deepDive.theme}
+              impacts={report.cross_theme_impact}
+            />
+          </Section>
+        )}
+
         {/* 来週の注目点 */}
         <Section title="Watch Next Week">
           <ul className="space-y-2">
@@ -191,7 +237,7 @@ function Sidebar() {
 // --- OSINTデータダッシュボード ---
 function OsintDashboard({ data, themeColor }: { data: OsintDataPoint[]; themeColor: string }) {
   const sourceLabels: Record<string, string> = {
-    fred: "FRED", estat: "e-Stat", fao: "FAO", dbnomics: "World Bank",
+    fred: "FRED", boj: "日銀", estat: "e-Stat", fao: "FAO", dbnomics: "World Bank",
     usgs: "USGS", opensanctions: "OpenSanctions", edinet: "EDINET",
     comtrade: "UN Comtrade", gfw: "GFW", ucdp: "UCDP",
   };
@@ -538,6 +584,78 @@ function MultiLineChart({ lines, labels, unit }: {
             </text>
           );
         })}
+      </svg>
+    </div>
+  );
+}
+
+// --- 施策6: 因果チェーンSVG図 ---
+function CausalChainDiagram({ centerTheme, impacts }: {
+  centerTheme: ThemeId;
+  impacts: { theme: ThemeId; impact: string }[];
+}) {
+  const center = THEME_MAP[centerTheme];
+  if (!center) return null;
+
+  const W = 500, H = 320;
+  const cx = W / 2, cy = H / 2;
+  const radius = 120;
+
+  const nodes = impacts.map((imp, i) => {
+    const angle = (i / impacts.length) * 2 * Math.PI - Math.PI / 2;
+    const t = THEME_MAP[imp.theme];
+    return {
+      x: cx + radius * Math.cos(angle),
+      y: cy + radius * Math.sin(angle),
+      theme: t,
+      impact: imp.impact,
+    };
+  }).filter((n) => n.theme);
+
+  return (
+    <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: "350px" }}>
+        {/* 矢印マーカー */}
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)" />
+          </marker>
+        </defs>
+
+        {/* 中心→各テーマへの矢印 */}
+        {nodes.map((n, i) => {
+          const dx = n.x - cx, dy = n.y - cy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const nx = dx / dist, ny = dy / dist;
+          const startX = cx + nx * 30, startY = cy + ny * 30;
+          const endX = n.x - nx * 28, endY = n.y - ny * 28;
+          // ラベル位置（矢印の中間点）
+          const midX = (startX + endX) / 2, midY = (startY + endY) / 2;
+          const shortImpact = n.impact.length > 20 ? n.impact.substring(0, 20) + "…" : n.impact;
+          return (
+            <g key={i}>
+              <line x1={startX} y1={startY} x2={endX} y2={endY}
+                stroke={n.theme!.color + "60"} strokeWidth="2" markerEnd="url(#arrow)" />
+              <text x={midX} y={midY - 6} textAnchor="middle" fill="var(--muted)" fontSize="7" fontFamily="monospace">
+                {shortImpact}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* 中心ノード */}
+        <circle cx={cx} cy={cy} r="28" fill={center.color + "20"} stroke={center.color} strokeWidth="2" />
+        <text x={cx} y={cy - 6} textAnchor="middle" fill={center.color} fontSize="16">{center.icon}</text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fill="#E2E8F0" fontSize="8" fontFamily="monospace">{center.labelJa}</text>
+
+        {/* 外側ノード */}
+        {nodes.map((n, i) => (
+          <g key={i}>
+            <circle cx={n.x} cy={n.y} r="24" fill={n.theme!.color + "15"} stroke={n.theme!.color + "60"} strokeWidth="1.5" />
+            <text x={n.x} y={n.y - 4} textAnchor="middle" fill={n.theme!.color} fontSize="14">{n.theme!.icon}</text>
+            <text x={n.x} y={n.y + 10} textAnchor="middle" fill="var(--muted)" fontSize="7" fontFamily="monospace">{n.theme!.labelJa}</text>
+          </g>
+        ))}
       </svg>
     </div>
   );

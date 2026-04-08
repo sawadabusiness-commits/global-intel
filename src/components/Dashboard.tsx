@@ -1,16 +1,19 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { AnalyzedArticle, ThemeId, OsintVerification, OsintArticle } from "@/lib/types";
+import type { AnalyzedArticle, ThemeId, OsintVerification, OsintArticle, OsintAnomaly, IntelligenceMemory } from "@/lib/types";
 import { THEMES, THEME_MAP } from "@/lib/themes";
 import ThemeFilter from "./ThemeFilter";
 import ArticleCard from "./ArticleCard";
+import IntelBriefing from "./IntelBriefing";
 
 interface Props {
   articles: AnalyzedArticle[];
   date: string;
   osintVerifications?: OsintVerification[];
   osintArticles?: OsintArticle[];
+  anomalies?: OsintAnomaly[];
+  memory?: IntelligenceMemory | null;
 }
 
 function getReadIds(date: string): Set<string> {
@@ -25,7 +28,7 @@ function saveReadIds(date: string, ids: Set<string>) {
   localStorage.setItem(`read:${date}`, JSON.stringify([...ids]));
 }
 
-export default function Dashboard({ articles, date, osintVerifications = [], osintArticles = [] }: Props) {
+export default function Dashboard({ articles, date, osintVerifications = [], osintArticles = [], anomalies = [], memory = null }: Props) {
   const [selectedTheme, setSelectedTheme] = useState<ThemeId | null>(null);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [hideRead, setHideRead] = useState(false);
@@ -155,6 +158,11 @@ export default function Dashboard({ articles, date, osintVerifications = [], osi
         <div className="mb-6">
           <ThemeFilter selected={selectedTheme} onSelect={setSelectedTheme} />
         </div>
+
+        {/* インテリジェンス・ブリーフィング */}
+        {!selectedTheme && (
+          <IntelBriefing anomalies={anomalies} memory={memory} date={date} />
+        )}
 
         {/* OSINT独自記事 */}
         {osintArticles.length > 0 && !selectedTheme && !(hideRead && unreadOsint === 0) && (

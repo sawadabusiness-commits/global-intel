@@ -1,14 +1,18 @@
-import { getWeeklyDeepDive, getLatestDeepDiveDate, getOsintSnapshot, getLatestOsintDate } from "@/lib/kv";
+import { getWeeklyDeepDive, getLatestDeepDiveDate, getOsintSnapshot, getLatestOsintDate, getMemory } from "@/lib/kv";
 import DeepDiveClient from "./DeepDiveClient";
 
 export const dynamic = "force-dynamic";
 
 export default async function DeepDivePage() {
-  const latestDate = await getLatestDeepDiveDate();
-  const deepDive = latestDate ? await getWeeklyDeepDive(latestDate) : null;
+  const [latestDate, osintDate] = await Promise.all([
+    getLatestDeepDiveDate(),
+    getLatestOsintDate(),
+  ]);
+  const [deepDive, osintSnapshot, memory] = await Promise.all([
+    latestDate ? getWeeklyDeepDive(latestDate) : Promise.resolve(null),
+    osintDate ? getOsintSnapshot(osintDate) : Promise.resolve(null),
+    getMemory(),
+  ]);
 
-  const osintDate = await getLatestOsintDate();
-  const osintSnapshot = osintDate ? await getOsintSnapshot(osintDate) : null;
-
-  return <DeepDiveClient deepDive={deepDive} osintData={osintSnapshot?.data_points ?? []} />;
+  return <DeepDiveClient deepDive={deepDive} osintData={osintSnapshot?.data_points ?? []} memory={memory} />;
 }
