@@ -401,6 +401,118 @@ export async function fetchFRED(): Promise<OsintDataPoint[]> {
 }
 
 // ============================================================
+// 日銀時系列統計API — 短観・企業物価・マネーストック・政策金利・国際収支（APIキー不要）
+// ============================================================
+interface BojSeries {
+  db: string;
+  code: string;
+  label: string;
+  category: OsintDataPoint["category"];
+  unit: string;
+}
+
+const BOJ_SERIES: BojSeries[] = [
+  // 短観（四半期）
+  { db: "CO", code: "TK99F1000601GCQ01000", label: "日銀短観DI（大企業製造業・実績）", category: "macro", unit: "%ポイント" },
+  { db: "CO", code: "TK99F1000601GCQ11000", label: "日銀短観DI（大企業製造業・予測）", category: "macro", unit: "%ポイント" },
+  { db: "CO", code: "TK99F2000601GCQ01000", label: "日銀短観DI（大企業非製造業・実績）", category: "macro", unit: "%ポイント" },
+  { db: "CO", code: "TK99F2000601GCQ11000", label: "日銀短観DI（大企業非製造業・予測）", category: "macro", unit: "%ポイント" },
+  // 企業物価指数
+  { db: "PR01", code: "PRCG20_2200000000", label: "国内企業物価指数（総合）", category: "price", unit: "指数" },
+  // マネーストック
+  { db: "MD02", code: "MAM1NAM2M2MO", label: "マネーストックM2（平残）", category: "finance", unit: "億円" },
+  // 政策金利
+  { db: "IR01", code: "MADR1M", label: "基準割引率および基準貸付利率", category: "finance", unit: "%" },
+  // 国際収支
+  { db: "BP01", code: "BPBP6JYNCB", label: "経常収支", category: "trade", unit: "億円" },
+  { db: "BP01", code: "BPBP6JYNTB", label: "貿易収支", category: "trade", unit: "億円" },
+];
+
+function parseBojDate(surveyDate: string): string {
+  // "202401" → "2024-Q1", "202601" → "2026-01" for monthly
+  const y = surveyDate.substring(0, 4);
+  const mm = surveyDate.substring(4, 6);
+  return `${y}-${mm}`;
+}
+
+export async function fetchBOJ(): Promise<OsintDataPoint[]> {
+  // Group by DB to minimize requests
+  const byDb = new Map<string, BojSeries[]>();
+  for (const s of BOJ_SERIES) {
+    const list = byDb.get(s.db) ?? [];
+    list.push(s);
+    byDb.set(s.db, list);
+  }
+
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const endYM = `${jst.getFullYear()}${String(jst.getMonth() + 1).padStart(2, "0")}`;
+  const startYear = jst.getFullYear() - 2;
+  const startYM = `${startYear}01`;
+
+  const dbPromises = [...byDb.entries()].map(async ([db, seriesList]) => {
+    try {
+      const codes = seriesList.map((s) => s.code).join(",");
+      const url = `https://www.stat-search.boj.or.jp/api/v1/getDataCode?format=csv&lang=en&db=${db}&code=${codes}&startDate=${startYM}&endDate=${endYM}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) return [];
+      const text = await res.text();
+      const lines = text.split("\n");
+      const headerIdx = lines.findIndex((l) => l.startsWith("SERIES_CODE"));
+      if (headerIdx < 0) return [];
+
+      const points: OsintDataPoint[] = [];
+      for (const line of lines.slice(headerIdx + 1)) {
+        if (!line.trim()) continue;
+        const cols = line.split(",");
+        const code = cols[0];
+        const surveyDate = cols[6];
+        const valStr = cols[7];
+        if (!code || !surveyDate || !valStr || valStr === "null") continue;
+        const val = parseFloat(valStr);
+        if (isNaN(val)) continue;
+
+        const series = seriesList.find((s) => s.code === code);
+        if (!series) continue;
+
+        points.push({
+          source: "boj" as const,
+          category: series.category,
+          indicator: code,
+          label: series.label,
+          value: val,
+          date: parseBojDate(surveyDate),
+          country: "JPN",
+          unit: series.unit,
+        });
+      }
+
+      // Keep latest 12 per series
+      const byCode = new Map<string, OsintDataPoint[]>();
+      for (const p of points) {
+        const list = byCode.get(p.indicator) ?? [];
+        list.push(p);
+        byCode.set(p.indicator, list);
+      }
+      const result: OsintDataPoint[] = [];
+      for (const list of byCode.values()) {
+        list.sort((a, b) => b.date.localeCompare(a.date));
+        result.push(...list.slice(0, 12));
+      }
+      return result;
+    } catch (e) {
+      console.error(`[BOJ] ${db} fetch error:`, e);
+      return [];
+    }
+  });
+
+  const results = await Promise.all(dbPromises);
+  const all: OsintDataPoint[] = [];
+  for (const r of results) all.push(...r);
+  return all;
+}
+
+// ============================================================
 // EDINET — 日本の有価証券報告書・大量保有報告（APIキー不要）
 // ============================================================
 export async function fetchEDINET(): Promise<OsintDataPoint[]> {
@@ -870,9 +982,10 @@ export async function fetchUCDPConflicts(): Promise<OsintDataPoint[]> {
 // 全データソース並列取得
 // ============================================================
 export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
-  const [worldbank, fred, edinet, estat, wages, usgs, fao, opensanctions, comtrade, gfw, ucdp] = await Promise.all([
+  const [worldbank, fred, boj, edinet, estat, wages, usgs, fao, opensanctions, comtrade, gfw, ucdp] = await Promise.all([
     fetchWorldBankDirect().catch(() => [] as OsintDataPoint[]),
     fetchFRED().catch(() => [] as OsintDataPoint[]),
+    fetchBOJ().catch(() => [] as OsintDataPoint[]),
     fetchEDINET().catch(() => [] as OsintDataPoint[]),
     fetchEStatData().catch(() => [] as OsintDataPoint[]),
     // 賃金CSVは週1回（月曜）だけダウンロード。他の曜日は空配列（KVの前回データを使用）
@@ -884,7 +997,7 @@ export async function fetchAllDataSources(): Promise<OsintDataPoint[]> {
     fetchGFWActivity().catch(() => [] as OsintDataPoint[]),
     fetchUCDPConflicts().catch(() => [] as OsintDataPoint[]),
   ]);
-  return [...worldbank, ...fred, ...edinet, ...estat, ...wages, ...usgs, ...fao, ...opensanctions, ...comtrade, ...gfw, ...ucdp];
+  return [...worldbank, ...fred, ...boj, ...edinet, ...estat, ...wages, ...usgs, ...fao, ...opensanctions, ...comtrade, ...gfw, ...ucdp];
 }
 
 // ============================================================
