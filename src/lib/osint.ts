@@ -563,8 +563,6 @@ export async function fetchEDINET(): Promise<OsintDataPoint[]> {
 // ============================================================
 // e-Stat — 日本政府統計（ESTAT_API_KEY 必要）
 // ============================================================
-// 消費者物価指数: statsDataId=0003427113
-// cdCat01=0001 → 総合, cdArea=00000 → 全国
 function parseEStatTime(timeCode: string): string {
   // "2025000101" → "2025-01", "2025000601" → "2025-06"
   if (timeCode.length >= 10) {
@@ -575,51 +573,89 @@ function parseEStatTime(timeCode: string): string {
   return timeCode;
 }
 
+interface EStatQuery {
+  statsDataId: string;
+  indicator: string;
+  label: string;
+  category: OsintDataPoint["category"];
+  unit: string;
+  /** 追加クエリパラメータ（カテゴリ・地域フィルタ等） */
+  extraParams?: string;
+  /** cdTimeFrom/cdTimeTo で時間範囲を絞る */
+  useTimeRange?: boolean;
+}
+
+const ESTAT_QUERIES: EStatQuery[] = [
+  // 消費者物価指数: 総合・全国
+  { statsDataId: "0003427113", indicator: "cpi_total", label: "日本CPI（総合・全国）",
+    category: "price", unit: "指数", extraParams: "&cdCat01=0001&cdArea=00000" },
+  // 消費者態度指数: 一般世帯(cat01=110)
+  { statsDataId: "0003446461", indicator: "consumer_confidence", label: "消費者態度指数（一般世帯）",
+    category: "macro", unit: "ポイント", extraParams: "&cdCat01=110", useTimeRange: true },
+  // 機械受注: 民需(船舶・電力除く)(cat01=200), 季調系列(cat02=100)
+  { statsDataId: "0003355222", indicator: "machinery_orders", label: "機械受注（民需・船電除く・季調）",
+    category: "macro", unit: "百万円", extraParams: "&cdCat01=200&cdCat02=100", useTimeRange: true },
+  // 家計調査: 消費支出(cat01=059), 二人以上世帯(cat02=03), 全国(area=00000)
+  { statsDataId: "0002070001", indicator: "household_spending", label: "家計調査消費支出（二人以上世帯）",
+    category: "macro", unit: "円", extraParams: "&cdCat01=059&cdCat02=03&cdArea=00000", useTimeRange: true },
+];
+
 export async function fetchEStatData(): Promise<OsintDataPoint[]> {
   const apiKey = process.env.ESTAT_API_KEY;
   if (!apiKey) return [];
 
-  try {
-    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=0003427113&cdCat01=0001&cdArea=00000&limit=24&metaGetFlg=N&sectionHeaderFlg=1`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) {
-      console.error(`e-Stat API error: ${res.status}`);
+  const now = new Date();
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const startYear = jst.getFullYear() - 1;
+  const timeFrom = `${startYear}000101`;
+  const timeTo = `${jst.getFullYear() + 1}001212`;
+
+  const promises = ESTAT_QUERIES.map(async (q) => {
+    try {
+      let url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${apiKey}&statsDataId=${q.statsDataId}&limit=24&metaGetFlg=N&sectionHeaderFlg=1${q.extraParams ?? ""}`;
+      if (q.useTimeRange) {
+        url += `&cdTimeFrom=${timeFrom}&cdTimeTo=${timeTo}`;
+      }
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) return [];
+      const data = await res.json();
+
+      const status = data?.GET_STATS_DATA?.RESULT?.STATUS;
+      if (status && status !== 0) {
+        console.error(`[e-Stat] ${q.indicator} error: ${data?.GET_STATS_DATA?.RESULT?.ERROR_MSG}`);
+        return [];
+      }
+
+      const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+      if (!Array.isArray(values)) return [];
+
+      const results: OsintDataPoint[] = [];
+      for (const v of values) {
+        const raw = v["$"];
+        if (raw === undefined || raw === null || raw === "-" || raw === "…") continue;
+        const value = parseFloat(String(raw));
+        if (isNaN(value)) continue;
+        const timeCode = v["@time"] ?? "";
+        const date = parseEStatTime(String(timeCode));
+        results.push({
+          source: "estat", category: q.category,
+          indicator: q.indicator, label: q.label,
+          value, date, country: "JPN", unit: q.unit,
+        });
+      }
+
+      results.sort((a, b) => b.date.localeCompare(a.date));
+      return results.slice(0, 12);
+    } catch (e) {
+      console.error(`[e-Stat] ${q.indicator} fetch error:`, e);
       return [];
     }
-    const data = await res.json();
+  });
 
-    // エラーチェック
-    const status = data?.GET_STATS_DATA?.RESULT?.STATUS;
-    if (status && status !== 0) {
-      console.error(`e-Stat error: ${data?.GET_STATS_DATA?.RESULT?.ERROR_MSG}`);
-      return [];
-    }
-
-    const values = data?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
-    if (!Array.isArray(values)) return [];
-
-    const results: OsintDataPoint[] = [];
-    for (const v of values) {
-      const raw = v["$"];
-      if (raw === undefined || raw === null || raw === "-" || raw === "…") continue;
-      const value = parseFloat(String(raw));
-      if (isNaN(value)) continue;
-      const timeCode = v["@time"] ?? "";
-      const date = parseEStatTime(String(timeCode));
-      results.push({
-        source: "estat", category: "price",
-        indicator: "cpi_total", label: "日本CPI（総合・全国）",
-        value, date, country: "JPN", unit: "指数",
-      });
-    }
-
-    // 最新12ヶ月分を返す（降順ソートして上位12件）
-    results.sort((a, b) => b.date.localeCompare(a.date));
-    return results.slice(0, 12);
-  } catch (e) {
-    console.error("e-Stat fetch error:", e);
-    return [];
-  }
+  const results = await Promise.all(promises);
+  const all: OsintDataPoint[] = [];
+  for (const r of results) all.push(...r);
+  return all;
 }
 
 // ============================================================
