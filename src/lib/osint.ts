@@ -322,17 +322,53 @@ export async function fetchOpenSanctions(): Promise<OsintDataPoint[]> {
 // ============================================================
 // FRED — 米国金融指標（FRED_API_KEY 必要）
 // ============================================================
-const FRED_SERIES: { id: string; label: string; category: OsintDataPoint["category"]; unit: string; country?: string }[] = [
-  // 米国
+const FRED_SERIES: { id: string; label: string; category: OsintDataPoint["category"]; unit: string; country?: string; freq?: "q" }[] = [
+  // ── 米国：金融・金利 ──
   { id: "FEDFUNDS", label: "FF金利", category: "finance", unit: "%", country: "USA" },
   { id: "DGS10", label: "米10年国債利回り", category: "finance", unit: "%", country: "USA" },
   { id: "T10YIE", label: "10年BEI（期待インフレ率）", category: "price", unit: "%", country: "USA" },
-  { id: "UNRATE", label: "米国失業率", category: "macro", unit: "%", country: "USA" },
   { id: "DTWEXBGS", label: "米ドル実効為替レート", category: "finance", unit: "指数", country: "USA" },
-  // 日本
+  // ── 米国：物価 ──
+  { id: "CPIAUCSL", label: "米国CPI（都市部全品目）", category: "price", unit: "指数", country: "USA" },
+  { id: "CPILFESL", label: "米国コアCPI（除食料エネ）", category: "price", unit: "指数", country: "USA" },
+  { id: "PPIACO", label: "米国PPI（全品目）", category: "price", unit: "指数", country: "USA" },
+  { id: "PCEPI", label: "米国PCEデフレーター", category: "price", unit: "指数", country: "USA" },
+  { id: "PCEPILFE", label: "米国コアPCE（除食料エネ）", category: "price", unit: "指数", country: "USA" },
+  // ── 米国：雇用 ──
+  { id: "UNRATE", label: "米国失業率", category: "macro", unit: "%", country: "USA" },
+  { id: "PAYEMS", label: "米国非農業部門雇用者数", category: "macro", unit: "千人", country: "USA" },
+  { id: "ICSA", label: "米国新規失業保険申請件数", category: "macro", unit: "件", country: "USA" },
+  { id: "CES0500000003", label: "米国平均時給", category: "macro", unit: "ドル", country: "USA" },
+  // ── 米国：生産・景況感 ──
+  { id: "INDPRO", label: "米国鉱工業生産", category: "macro", unit: "指数", country: "USA" },
+  { id: "TCU", label: "米国設備稼働率", category: "macro", unit: "%", country: "USA" },
+  { id: "DGORDER", label: "米国耐久財受注", category: "macro", unit: "百万ドル", country: "USA" },
+  { id: "RSAFS", label: "米国小売売上高", category: "macro", unit: "百万ドル", country: "USA" },
+  { id: "UMCSENT", label: "ミシガン大学消費者信頼感", category: "macro", unit: "指数", country: "USA" },
+  // ── 米国：GDP・個人消費 ──
+  { id: "GDPC1", label: "米国実質GDP", category: "macro", unit: "十億ドル", country: "USA", freq: "q" },
+  { id: "PI", label: "米国個人所得", category: "macro", unit: "十億ドル", country: "USA" },
+  { id: "PCE", label: "米国個人消費支出", category: "macro", unit: "十億ドル", country: "USA" },
+  // ── 米国：住宅 ──
+  { id: "HOUST", label: "米国住宅着工件数", category: "macro", unit: "千戸", country: "USA" },
+  { id: "PERMIT", label: "米国建設許可件数", category: "macro", unit: "千戸", country: "USA" },
+  { id: "EXHOSLUSM495S", label: "米国中古住宅販売件数", category: "macro", unit: "千戸", country: "USA" },
+  // ── 米国：貿易 ──
+  { id: "BOPGSTB", label: "米国貿易収支", category: "trade", unit: "百万ドル", country: "USA" },
+  // ── 日本 ──
   { id: "IRSTCI01JPM156N", label: "日本短期金利", category: "finance", unit: "%", country: "JPN" },
   { id: "IRLTLT01JPM156N", label: "日本10年国債利回り", category: "finance", unit: "%", country: "JPN" },
   { id: "LRUNTTTTJPM156S", label: "日本失業率", category: "macro", unit: "%", country: "JPN" },
+  // ── 欧州 ──
+  { id: "ECBDFR", label: "ECB預金ファシリティ金利", category: "finance", unit: "%", country: "EUR" },
+  { id: "CP0000EZ19M086NEST", label: "ユーロ圏HICP（前年比）", category: "price", unit: "%", country: "EUR" },
+  { id: "LRHUTTTTEZM156S", label: "ユーロ圏失業率", category: "macro", unit: "%", country: "EUR" },
+  { id: "CLVMNACSCAB1GQEA19", label: "ユーロ圏実質GDP", category: "macro", unit: "百万ユーロ", country: "EUR", freq: "q" },
+  // ── 英国 ──
+  { id: "IUDSOIA", label: "英国政策金利（BOE）", category: "finance", unit: "%", country: "GBR" },
+  { id: "GBRCPIALLMINMEI", label: "英国CPI（前年比）", category: "price", unit: "%", country: "GBR" },
+  // ── 中国 ──
+  { id: "CHNCPIALLMINMEI", label: "中国CPI（前年比）", category: "price", unit: "%", country: "CHN" },
 ];
 
 export async function fetchFRED(): Promise<OsintDataPoint[]> {
@@ -341,7 +377,8 @@ export async function fetchFRED(): Promise<OsintDataPoint[]> {
 
   const promises = FRED_SERIES.map(async (s) => {
     try {
-      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${s.id}&api_key=${apiKey}&file_type=json&limit=12&sort_order=desc&frequency=m&aggregation_method=avg`;
+      const freq = s.freq ?? "m";
+      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${s.id}&api_key=${apiKey}&file_type=json&limit=12&sort_order=desc&frequency=${freq}&aggregation_method=avg`;
       const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
       if (!res.ok) return [];
       const data = await res.json();
