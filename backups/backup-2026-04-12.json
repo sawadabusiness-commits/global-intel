@@ -1,0 +1,1470 @@
+{
+  "exported_at": "2026-04-12T22:33:22.273Z",
+  "predictions": [
+    {
+      "article_id": "c828ebf49433dfbbbeb58635c0a5c3e5",
+      "article_title": "トランプ政権のイラン政策に関する議論",
+      "theme": "geopolitics",
+      "my_scenario": "中東の不安定化",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "アメリカの軍事優越性の強化",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "アメリカがイラン政策を通じて軍事的優越性を保ち、欧州諸国がその影響を受ける。"
+        },
+        {
+          "name": "欧州の独自防衛力の強化",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "欧州がアメリカの影響から脱却し、自主防衛力を強化する動きが進む。"
+        },
+        {
+          "name": "中東の不安定化",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "イランとの緊張が高まり、地域の武力衝突が激化する。"
+        }
+      ],
+      "id": "49a922be-0b05-4fc1-80a5-e81d2410ab5f",
+      "date": "2026-04-10",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "adc2da0dc6d1afe5176f07ad4e46649e",
+      "article_title": "無人機が戦争を再定義: Ghatak UCAVの登場",
+      "theme": "geopolitics",
+      "my_scenario": "地域紛争の激化",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "インドの防衛産業が国際的に成長する",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "インドが防衛産業で国際競争力を持ち、輸出市場に進出する。"
+        },
+        {
+          "name": "テクノロジー依存が高まる",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "無人機などのテクノロジーへの依存が高まり、運用のリスクが増加する。"
+        },
+        {
+          "name": "地域紛争の激化",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "地政学的緊張が高まり、中国やパキスタンとの紛争が再燃する可能性がある。"
+        }
+      ],
+      "id": "d65a9d2b-a40c-49d0-888e-29f05e8a39b7",
+      "date": "2026-04-10",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "fefd402168cd1835de82c5388f47a1f6",
+      "article_title": "Volvo V60のレビュー",
+      "theme": "tech_society",
+      "my_scenario": "エステートカーの復活",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "エステートカーの復活",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "エステートカー市場がさらなる成長を遂げ、競争力を持つ車種として定着する。"
+        },
+        {
+          "name": "SUVの優位性維持",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "SUVの人気が続き、エステートカーの市場シェアが増えない可能性がある。"
+        },
+        {
+          "name": "EV市場への移行",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "2030年までにEVが主流となり、ハイブリッド車の需要が減少する。"
+        }
+      ],
+      "id": "467b8b65-d28b-452a-bd1f-86da3af9488d",
+      "date": "2026-04-09",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "e046ada401f491041c08d64d5fb804a8",
+      "article_title": "Jetpack Composeのテキストフィールドの最大長に隠れた問題",
+      "theme": "tech_society",
+      "my_scenario": "Jetpack Composeの改善",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "Jetpack Composeの改善",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "Jetpack Composeの開発が進み、最大長問題が解決されることで、ユーザーエクスペリエンスが向上し、開発者の採用が増加する。"
+        },
+        {
+          "name": "競争の激化",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "他のUIツールキットがJetpack Composeの問題を乗り越え、開発者の関心が移る可能性がある。"
+        },
+        {
+          "name": "新技術への反発",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "新技術の導入に対する抵抗が高まり、従来の開発方法に戻る動きが出現する。"
+        }
+      ],
+      "id": "f9e1e7d2-0cea-425a-be0d-a851e87bf596",
+      "date": "2026-04-09",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "6b64d6471274a1de87e20d6fc404c4cb",
+      "article_title": "北朝鮮、東海にミサイルを発射",
+      "theme": "geopolitics",
+      "my_scenario": "緊張の継続とエスカレーション",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "緊張の継続とエスカレーション",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "北朝鮮がさらなる挑発的行動を続け、米韓はそれに対抗するために軍事的な準備を強化する。"
+        },
+        {
+          "name": "外交的解決の模索",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "国際社会が北朝鮮との対話を促進し、一定の合意形成を目指すが、実現には時間がかかる。"
+        },
+        {
+          "name": "新たな経済制裁の導入",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "国連や主要国が北朝鮮に対する新たな経済制裁を導入し、北朝鮮経済をさらに圧迫する。"
+        }
+      ],
+      "id": "d965c7bf-de65-4c0c-af33-ea8539d2ffb5",
+      "date": "2026-04-09",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "a2bb2d6db0792bbb8cf28ac29a703381",
+      "article_title": "グローバル貿易は成長しているが脆弱性も増加",
+      "theme": "economic_policy",
+      "my_scenario": "安定的成長シナリオ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "安定的成長シナリオ",
+          "probability": "中〜高",
+          "timeframe": "mid",
+          "description": "新興市場への投資が進むことで、貿易の安定性が確保され、持続的な成長が実現する。"
+        },
+        {
+          "name": "経済危機シナリオ",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "地政学的緊張やインフレの影響で、貿易が急減し、企業が大きな損失を被る可能性がある。"
+        },
+        {
+          "name": "サプライチェーン再構築シナリオ",
+          "probability": "高",
+          "timeframe": "long",
+          "description": "企業がサプライチェーンの多様化を進め、リスクを軽減するための戦略を積極的に採用することで、長期的な安定が図られる。"
+        }
+      ],
+      "id": "bbcc4321-977a-4622-8b01-c2f892ac6317",
+      "date": "2026-04-09",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "2d56f0dd10077645c7992a798436baea",
+      "article_title": "トランプ大統領、イランに対する最後通告の期限切れで文明が滅びると警告",
+      "theme": "geopolitics",
+      "my_scenario": "地域の安定化",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "米国とイランの軍事衝突",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "トランプ大統領の発言を受けて、米国がイランに対して軍事行動を起こす可能性が高い。この結果、中東地域の不安定化が進む。"
+        },
+        {
+          "name": "国際的な制裁の強化",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "米国がイランに対する制裁を強化し、それに伴い、他国も同調することで国際的な経済影響が広がる。"
+        },
+        {
+          "name": "地域の安定化",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "国際社会の働きかけにより、イランとの対話が進み、地域の安定が回復する可能性がある。"
+        }
+      ],
+      "id": "a805698e-994f-4437-a942-7097d4328ecf",
+      "date": "2026-04-08",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "4141d340b4199489b59b3fc844377cd9",
+      "article_title": "40年のUAE居住者が選ぶドバイ",
+      "theme": "demographics",
+      "my_scenario": "UAEの経済成長の持続",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "UAEの経済成長の持続",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "観光業が引き続き成長し、外国人投資家が増加することでUAEの経済が安定し続ける。"
+        },
+        {
+          "name": "地域社会のさらなる結束",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "UAE内での多文化共生が進むことで、地域社会の結束が強まるが、外部の経済的ショックには脆弱である。"
+        },
+        {
+          "name": "経済的不安定性の影響",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "グローバルな経済の不安定性がUAEの経済に影響を与え、居住者の定住意欲が低下する可能性がある。"
+        }
+      ],
+      "id": "4ad3a05f-d351-4c9f-baa3-fee5fca2cab6",
+      "date": "2026-04-07",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "99466059c0e740da84580fd7bb517ead",
+      "article_title": "Appleの週末特価情報",
+      "theme": "tech_society",
+      "my_scenario": "消費者の購買意欲の低下",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "価格競争の激化",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "他社も価格を引き下げ、Appleがさらなる割引を行う可能性が高い。"
+        },
+        {
+          "name": "新製品の投入",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "Appleが新製品を発表し、競争を強化することで市場シェアを拡大するシナリオ。"
+        },
+        {
+          "name": "消費者の購買意欲の低下",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "インフレが続く中で消費者の購買意欲が低下し、全体的な売上に影響を与える可能性。"
+        }
+      ],
+      "id": "f95f105a-b786-42bd-8d7d-89aec6160bae",
+      "date": "2026-04-06",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "d74028ffb0f4600287822ea9a5d77cf9",
+      "article_title": "台湾の野党指導者、中国訪問へ",
+      "theme": "geopolitics",
+      "my_scenario": "内政の混乱",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "平和的関係の構築",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "国民党が平和的な外交政策を推進し、中国との関係改善が進む。"
+        },
+        {
+          "name": "米中対立の激化",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "米国の武器販売が影響し、中国が台湾に対して強硬な立場を取る可能性が高まる。"
+        },
+        {
+          "name": "内政の混乱",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "国民党の訪問が台湾内部の対立を激化させ、政治的不安定が続く可能性がある。"
+        }
+      ],
+      "id": "7928889a-59d1-45f2-a6ed-5713236f3ccc",
+      "date": "2026-04-06",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "0c6bb3ce2d78f6a9ef819570719dcb44",
+      "article_title": "WHOOPが57.5億ドル調達、IPOの兆し",
+      "theme": "tech_society",
+      "my_scenario": "競争激化",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "IPO成功",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "WHOOPがIPOを成功させ、評価額がさらに上昇する可能性が高い。"
+        },
+        {
+          "name": "競争激化",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "新規参入者の増加により、健康ウェアラブル市場が競争過熱状態になる。"
+        },
+        {
+          "name": "市場調整",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "市場が成熟し、成長が鈍化する可能性があり、企業が生き残るための戦略が必要。"
+        }
+      ],
+      "id": "a7ee0ff9-0485-4bb9-a77a-f21b00d2cd0f",
+      "date": "2026-04-06",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "3a7ba24eeb985aaa1e56dfa71e09cdd5",
+      "article_title": "デリー裁判所の週次まとめ",
+      "theme": "crime_drugs",
+      "my_scenario": "AIに関する法整備の加速",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "AIに関する法整備の加速",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "AIに関する法的規制が整備され、法廷での使用が明確に定義される。"
+        },
+        {
+          "name": "テロ資金供与の取り締まり強化",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "インド国内でのテロ資金供与に対する取り締まりが強化され、関連事件が増加する。"
+        },
+        {
+          "name": "AI訴訟の増加とその影響",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "AIに関連する訴訟が増加し、法廷での判例が形成される。"
+        }
+      ],
+      "id": "77896f9d-63f2-45f8-a685-ae0d95317d79",
+      "date": "2026-04-06",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "8010653f51332f62f13fb02d982987a5",
+      "article_title": "地政学がグローバル貿易の主なドライバーに",
+      "theme": "geopolitics",
+      "my_scenario": "持続的コスト上昇シナリオ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "地政学的安定化シナリオ",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "西アジアの政治状況が安定し、貿易フローが正常化する。"
+        },
+        {
+          "name": "リスク管理強化シナリオ",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "企業が地政学的リスクに対応するため、政治リスク保険を積極的に導入する。"
+        },
+        {
+          "name": "持続的コスト上昇シナリオ",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "地政学的緊張が続き、輸送コストが持続的に上昇することで、供給チェーン全体に影響を及ぼす。"
+        }
+      ],
+      "id": "933a2799-c01c-402a-8f2a-cc04a7e03e7c",
+      "date": "2026-04-06",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "9ef1cbe4a9ce98988e10ba0028ad804c",
+      "article_title": "バンガルCMがEVM発言で批判を受ける",
+      "theme": "politics",
+      "my_scenario": "選挙制度の改革が進む",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "選挙制度の改革が進む",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "EVMへの信頼性問題を受けて、政府が選挙制度改革に着手し、透明性向上を図る可能性がある。"
+        },
+        {
+          "name": "政治的不安定が続く",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "選挙直前のフラストレーションが高まり、暴力事件が増加することで、政治的緊張が続く可能性が高い。"
+        },
+        {
+          "name": "経済的影響が深刻化",
+          "probability": "中〜高",
+          "timeframe": "long",
+          "description": "投資環境の悪化が長期的に続き、経済成長率が低下する可能性がある。"
+        }
+      ],
+      "id": "8e2fc5b6-3a0e-41f3-83d0-d184e6af2d07",
+      "date": "2026-04-06",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "1a1f61c390a11a8396a5e7e9bc20fd5a",
+      "article_title": "AI時代にはリーダーシップの判断力が重要に",
+      "theme": "llm_api",
+      "my_scenario": "AIによる企業競争力の強化",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "AIによる企業競争力の強化",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "リーダーがAIを効果的に活用し、企業の競争力が強化される。"
+        },
+        {
+          "name": "AI倫理規制の強化による影響",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "AIに関する倫理規制が強化され、企業の運営に影響を及ぼす。"
+        },
+        {
+          "name": "リーダーシップの質の低下による企業の衰退",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "リーダーシップの質が低下し、企業の競争力が減少することで市場シェアを失うリスクが高まる。"
+        }
+      ],
+      "id": "ddd1b24d-d9eb-4fbc-a487-517b78cb2d31",
+      "date": "2026-04-06",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "45d259532b466f57d7389290f15d8bc9",
+      "article_title": "インド、イラン産原油の調達を公に認める",
+      "theme": "energy_resources",
+      "my_scenario": "イランとの関係強化",
+      "my_confidence": "中",
+      "my_reasoning": "思ったほどイランの制裁措置は強すぎないということか",
+      "ai_scenarios": [
+        {
+          "name": "イランとの関係強化",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "インドが引き続きイランからの原油を調達し、エネルギー供給の安定性を確保する。"
+        },
+        {
+          "name": "西アジアの地政学的危機拡大",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "地域の緊張が高まり、イランからの原油供給が制限される可能性がある。"
+        },
+        {
+          "name": "代替エネルギー源の発展",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "インドが再生可能エネルギーや他の供給源を強化し、イランへの依存を減らす。"
+        }
+      ],
+      "id": "d58bb16b-e7e9-48e2-9fae-4199f8b5be2e",
+      "date": "2026-04-06",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "16234ba661a840d6f4ff7307791060b9",
+      "article_title": "Axalta Coating SystemsとWestaimの比較",
+      "theme": "financial_system",
+      "my_scenario": "市場のボラティリティシナリオ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "安定した成長シナリオ",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "両社が市場の需要増に応じて安定した成長を遂げる。"
+        },
+        {
+          "name": "市場のボラティリティシナリオ",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "市場の不安定さが続き、株価が大きく変動する。"
+        },
+        {
+          "name": "インフレーションの影響シナリオ",
+          "probability": "中〜高",
+          "timeframe": "mid",
+          "description": "インフレ圧力が企業の利益に影響し、配当が減少する可能性。"
+        }
+      ],
+      "id": "0a62afae-8b00-4bf6-8201-09254d4dd4e4",
+      "date": "2026-04-04",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "423a2b32cb33a1972568551663e4bacf",
+      "article_title": "MLBの優れたルーキークラスとレブロンの発言",
+      "theme": "crime_drugs",
+      "my_scenario": "若手選手の市場での影響力が増大",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "若手選手の市場での影響力が増大",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "若手選手の人気が高まり、チームやリーグの収益が増加する。"
+        },
+        {
+          "name": "国際選手の台頭",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "外国出身の選手がリーグでの存在感を増し、MLBが国際的な舞台での競争力を強化する。"
+        },
+        {
+          "name": "メディア露出の競争激化",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "若手選手の活躍により新たなメディアプラットフォームが登場し、競争が激化する。"
+        }
+      ],
+      "id": "9b2ac083-ee6c-4bd2-8f47-102a90fe6ea1",
+      "date": "2026-04-04",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "06d8b795b40a9fdf1d3d7ff166510ded",
+      "article_title": "UPSC 現在の重要事項 - 2026年4月3日",
+      "theme": "demographics",
+      "my_scenario": "教育制度の成功",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "教育制度の成功",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "新しい教育政策と試験制度の改革が順調に進み、質の高い人材が育成される。"
+        },
+        {
+          "name": "教育格差の拡大",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "オンライン化による教育アクセスの不平等が広がり、特定の地域や層での受験者の質が低下する。"
+        },
+        {
+          "name": "人材ミスマッチの発生",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "労働市場のニーズと教育制度の整合性が取れず、公共部門での人材不足が発生する。"
+        }
+      ],
+      "id": "c2248c95-6978-44ca-9bbf-32ad3d8cfd1c",
+      "date": "2026-04-04",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "3dbbc1cce919814e7b5d66a0b4e79df0",
+      "article_title": "特異な歌い鳥の結果発表",
+      "theme": "demographics",
+      "my_scenario": "生物多様性の危機深化",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "環境保護市場の拡大",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "エコツーリズムや環境保護関連ビジネスが急成長し、その市場規模は2025年までに倍増する。"
+        },
+        {
+          "name": "生物多様性の危機深化",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "環境問題への対応が遅れ、生物多様性の喪失が進行する可能性がある。"
+        },
+        {
+          "name": "政策の強化",
+          "probability": "中〜高",
+          "timeframe": "short",
+          "description": "政府が環境保護に向けた政策を強化し、企業のエコ活動が促進される。"
+        }
+      ],
+      "id": "117c2959-6049-49e9-8448-59f767f4fe43",
+      "date": "2026-04-03",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "f4d59d3ac2309e460ca66c709c6b1ae3",
+      "article_title": "民主党、トランプの不当な郵便投票命令を阻止するため提訴",
+      "theme": "geopolitics",
+      "my_scenario": "選挙制度の全面的な見直し",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "郵便投票の合法化が進む",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "連邦裁判所が民主党の訴訟を支持し、郵便投票の合法化が進むことで、全国的に郵便投票が普及する可能性がある。"
+        },
+        {
+          "name": "州による独自の規制強化",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "トランプ大統領の命令が支持される場合、各州が独自に郵便投票の規制を強化する動きが加速し、選挙の不平等が拡大する可能性がある。"
+        },
+        {
+          "name": "選挙制度の全面的な見直し",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "郵便投票問題を契機に、米国全体で選挙制度の全面的な見直しが行われる可能性があるが、実現には多くの時間がかかると見込まれる。"
+        }
+      ],
+      "id": "0413d3bd-9c00-4c52-9845-36de7d675d1c",
+      "date": "2026-04-03",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "091fb0c56a469bfe0eeb0eaf196dbc2f",
+      "article_title": "ウォール街アナリストの最新の研究報告",
+      "theme": "economic_policy",
+      "my_scenario": "短期的ボラティリティシナリオ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "経済回復シナリオ",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "イランの安定化と経済データの持続的な改善により、株式市場が回復し続ける。"
+        },
+        {
+          "name": "短期的ボラティリティシナリオ",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "経済回復の期待が高まる一方で、地政学的リスクが再浮上し、短期的な価格変動が発生する。"
+        },
+        {
+          "name": "長期的なテクノロジー成長シナリオ",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "デジタル化の進展に伴い、テクノロジー関連株が持続的に成長し、投資家の関心が高まる。"
+        }
+      ],
+      "id": "2f6eef0c-d4ac-4a49-87a8-84c5dd15444f",
+      "date": "2026-04-03",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "a56e69b3d3925aa2206e850075cd4511",
+      "article_title": "NASAフライトディレクターのジーン・クランツ",
+      "theme": "space_cyber",
+      "my_scenario": "宇宙ビジネスの規制強化",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "新たな宇宙競争の再燃",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "国際的な宇宙開発競争が再び加熱し、技術革新や資源獲得が国際関係に影響を与える。"
+        },
+        {
+          "name": "民間宇宙産業の台頭",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "SpaceXやブルーオリジンなどの民間企業が宇宙ビジネスをリードし、NASAとのパートナーシップが強化される。"
+        },
+        {
+          "name": "宇宙ビジネスの規制強化",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "宇宙開発に伴う倫理的・法的課題に対する規制が強化され、企業活動に影響を与える。"
+        }
+      ],
+      "id": "b3f1e073-d29c-4d29-a12d-7e3deb6d55ac",
+      "date": "2026-04-03",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "e4dab50fb396d55304008c26e39ece3e",
+      "article_title": "マイクロソフト、3つの新AIモデルを発表",
+      "theme": "llm_api",
+      "my_scenario": "マイクロソフトの市場シェア拡大",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "マイクロソフトの市場シェア拡大",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "新AIモデルの成功により、2028年までに市場シェアが20%増加する可能性がある。"
+        },
+        {
+          "name": "競争激化による価格戦争",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "主要企業間で価格競争が激化し、2027年までに利益率が低下するシナリオ。"
+        },
+        {
+          "name": "技術的優位性の減少",
+          "probability": "中〜低",
+          "timeframe": "long",
+          "description": "競合他社がマイクロソフトの技術を模倣・改善し、2025年以降に技術的優位性が薄れる可能性がある。"
+        }
+      ],
+      "id": "55c32a75-ad24-4405-b6a1-0b807b66280b",
+      "date": "2026-04-03",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "9c9d679749acef1dfe9efdb43ca28d5d",
+      "article_title": "BitGoが機関向けの革新的なステーブルコインサービスを開始",
+      "theme": "financial_system",
+      "my_scenario": "デジタル資産の主流化",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "デジタル資産の主流化",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "機関投資家がデジタル資産を積極的に利用するようになり、ステーブルコインが金融市場で主流となる。"
+        },
+        {
+          "name": "規制強化による冷却",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "政府による規制強化が進み、機関投資家の参入が鈍化する。"
+        },
+        {
+          "name": "技術的障害の発生",
+          "probability": "低",
+          "timeframe": "short",
+          "description": "ステーブルコインの技術的問題が発生し、信頼性に疑問が生じる。"
+        }
+      ],
+      "id": "dacb2e4d-818d-4808-b533-96c0364f0e1f",
+      "date": "2026-04-03",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "4aa97a9aed646d698f29b15213e870c6",
+      "article_title": "環境質量分析市場、2035年までに64.7億ドルに成長",
+      "theme": "energy_resources",
+      "my_scenario": "持続可能な成長シナリオ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "持続可能な成長シナリオ",
+          "probability": "高",
+          "timeframe": "long",
+          "description": "環境規制がさらに強化され、AI技術が進化することで市場は持続的に成長し、2035年には64.7億ドルに達する。"
+        },
+        {
+          "name": "技術的後れシナリオ",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "技術革新が停滞し、企業が新しい環境技術に投資しない場合、市場成長は鈍化する可能性がある。"
+        },
+        {
+          "name": "規制緩和シナリオ",
+          "probability": "低",
+          "timeframe": "short",
+          "description": "政府の規制緩和により環境モニタリングの需要が減少し、市場成長が停滞する可能性がある。"
+        }
+      ],
+      "id": "9da738e4-8667-47a4-8aae-3b9abdfe60a9",
+      "date": "2026-04-03",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "247b0170a246d96b0ff3bc27993bbccd",
+      "article_title": "GameFiトークンが98％下落、セクターの価値は42.5億ドルに",
+      "theme": "economic_policy",
+      "my_scenario": "新しいプラットフォームの登場シナリオ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "持続可能な成長シナリオ",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "ゲームトークン市場が実用的なゲーム利用にシフトし、安定した成長を遂げる。"
+        },
+        {
+          "name": "規制強化シナリオ",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "各国での規制強化が進み、市場が縮小する可能性がある。"
+        },
+        {
+          "name": "新しいプラットフォームの登場シナリオ",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "新しいゲームプラットフォームが登場し、ゲームトークンの新たな活用方法が生まれる。"
+        }
+      ],
+      "id": "d82d3448-4ef4-4bee-bb80-25f0a07abb26",
+      "date": "2026-04-03",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "fa4a48490af59e38fb93a143021a2bf7",
+      "article_title": "AIがモロッコのジャーナリズムとコミュニケーション職を再形成",
+      "theme": "llm_api",
+      "my_scenario": "AIの倫理的課題の浮上",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "AIによるジャーナリズムの全面的な再構築",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "AIがメディア業界に浸透し、従来のジャーナリズムの形態が変わる。"
+        },
+        {
+          "name": "新たな職業の創出",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "AIによる新しい職業が出現し、若者の雇用機会が増加する。"
+        },
+        {
+          "name": "AIの倫理的課題の浮上",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "AIによる情報の偏りや誤情報のリスクが問題視され、規制が必要になる。"
+        }
+      ],
+      "id": "936e10ec-b610-4c71-a0ed-f46c3ab70328",
+      "date": "2026-04-03",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "f879f944c0b00e528a79007f4a8ff627",
+      "article_title": "シェバズ首相、グローバルな石油危機に対する共同努力を呼びかけ",
+      "theme": "energy_resources",
+      "my_scenario": "国際支援シナリオ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "経済の回復シナリオ",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "政府の投資政策が効果を上げ、農業生産が回復し、経済が安定する。"
+        },
+        {
+          "name": "持続的な困難シナリオ",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "石油価格が高止まりし続け、経済が持続的な困難に直面する。"
+        },
+        {
+          "name": "国際支援シナリオ",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "国際社会からの支援が増加し、経済が再構築される可能性がある。"
+        }
+      ],
+      "id": "4e0d1482-9bb1-4fa0-b331-a5f8400ceda9",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "8a24c2a2bd97d8e6a800073bd1440bbe",
+      "article_title": "ゲーム業界の価格上昇とAIの関与",
+      "theme": "tech_society",
+      "my_scenario": "コスト削減のための革新",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "価格上昇の継続",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "AI技術の普及に伴い、ゲームの価格は今後も上昇し続ける。"
+        },
+        {
+          "name": "コスト削減のための革新",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "企業がAIを活用したコスト削減策を講じ、価格の安定を図る可能性がある。"
+        },
+        {
+          "name": "消費者の反発",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "価格上昇に対する消費者の反発が強まり、企業が価格戦略を見直す必要が出てくる。"
+        }
+      ],
+      "id": "c1b0fab8-58fb-4dbb-a44a-1ceaa41ee141",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "69264c577d55b52ce75e00dc7a64ce2c",
+      "article_title": "ハーシー社、チョコレート価格を8%引き上げ",
+      "theme": "food_supply",
+      "my_scenario": "消費者の購買力低下シナリオ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "価格安定化シナリオ",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "ココアの供給が安定し、価格が落ち着くことで、チョコレート価格が安定する。"
+        },
+        {
+          "name": "持続的価格上昇シナリオ",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "原材料費がさらに上昇し、チョコレート価格も引き続き上昇する。"
+        },
+        {
+          "name": "消費者の購買力低下シナリオ",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "持続的な価格上昇により、消費者の購買力が低下し、食品業界全体に影響を及ぼす。"
+        }
+      ],
+      "id": "661a4739-a15c-412b-822b-66521a53ad84",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "37f4c2cfbe34b4b7112e942661d2e367",
+      "article_title": "不確実なFRBへのKohnの解決策",
+      "theme": "economic_policy",
+      "my_scenario": "短期的な金利引き下げ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "短期的な金利引き下げ",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "FRBがインフレを抑えるために金利を短期間で引き下げる可能性が高い。"
+        },
+        {
+          "name": "名目GDPターゲティングの実施",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "FRBが名目GDPターゲティングを徐々に導入し、経済安定化を図る。"
+        },
+        {
+          "name": "長期的な経済の回復",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "供給側のショックから回復し、経済成長が安定するが、インフレ率は依然として高止まりする。"
+        }
+      ],
+      "id": "acf64295-ae92-4305-9a64-1d3c0a7b49aa",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "608ab8b63f87f3496420fd0efc82345e",
+      "article_title": "ハーシー社のチョコレート価格上昇に関する懸念",
+      "theme": "food_supply",
+      "my_scenario": "消費者の購買行動変化シナリオ",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "価格安定化シナリオ",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "ココアの供給が安定し、価格が安定化することで、ハーシー社を含む食品企業は価格引き上げを見直す可能性がある。"
+        },
+        {
+          "name": "持続的な価格上昇シナリオ",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "ココアの価格が引き続き上昇し、他の食品企業も価格を引き上げることで、消費者の負担が増す可能性が高い。"
+        },
+        {
+          "name": "消費者の購買行動変化シナリオ",
+          "probability": "中〜高",
+          "timeframe": "long",
+          "description": "消費者が価格上昇に対抗するために、より安価な代替品にシフトすることで、食品業界全体に影響が及ぶ可能性がある。"
+        }
+      ],
+      "id": "321ad672-3ad8-4bd6-8c58-aa898dd34c63",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "8b3bb4d0347f7ab68b42b30b0279de67",
+      "article_title": "AI駆動の身分証明、遵守フレームワークの重要性",
+      "theme": "llm_api",
+      "my_scenario": "厳格な規制の適用",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "厳格な規制の適用",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "UKや他国でのAI規制が厳格化し、企業はそれに適応する必要が生じる。"
+        },
+        {
+          "name": "社会的信頼の喪失",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "倫理的リスクが顕在化し、企業が社会的信頼を失う可能性がある。"
+        },
+        {
+          "name": "AIの倫理的使用の確立",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "企業がAIの倫理的使用を確立し、社会的信頼を回復するシナリオ。"
+        }
+      ],
+      "id": "30166348-3727-41cc-96b4-9c14516092c7",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "b860e709a54d2c6288c305a883f565e5",
+      "article_title": "中国のイラン投資、リスク上昇",
+      "theme": "geopolitics",
+      "my_scenario": "新たなパートナーシップの形成",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "投資の減少",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "地政学的緊張が続く中、中国の対イラン投資がさらに減少し、経済的影響が広がる。"
+        },
+        {
+          "name": "新たなパートナーシップの形成",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "中国がイラン以外の国々との新たな投資先を模索し、戦略的パートナーシップを再構築する。"
+        },
+        {
+          "name": "軍事的介入の可能性",
+          "probability": "低",
+          "timeframe": "long",
+          "description": "米国とイスラエルの軍事的介入が進行し、中国が軍事的な支援を考慮する可能性がある。"
+        }
+      ],
+      "id": "6effaab9-ca49-4596-8ff6-1b3ef82b7c72",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "f1fb3b58fb1213db5d9a724ba6841037",
+      "article_title": "ハルワラ空港が開業、ルディアナ経済に貢献",
+      "theme": "emerging_markets",
+      "my_scenario": "地域経済の急成長",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "地域経済の急成長",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "空港の開設により、ルディアナの経済がさらに成長し、貿易や観光が活性化する。"
+        },
+        {
+          "name": "競争の激化",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "周辺地域との競争が激化し、ビジネス環境が変化する可能性がある。"
+        },
+        {
+          "name": "インフラ投資の遅延",
+          "probability": "低",
+          "timeframe": "short",
+          "description": "予期しないインフラ投資の遅延が、空港の利用率や地域経済に悪影響を及ぼす可能性。"
+        }
+      ],
+      "id": "2b279d15-dfb2-49aa-9a38-96143e1fbc1a",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "6524ea1f79481a1e2df78d40c1562be6",
+      "article_title": "SpyderBotがリアルタイムGEO分析を提供",
+      "theme": "llm_api",
+      "my_scenario": "AIデータ分析の標準化",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "AIデータ分析の標準化",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "企業がリアルタイムでAIデータ分析を利用することが標準となり、競争が激化する。"
+        },
+        {
+          "name": "プライバシー規制の強化",
+          "probability": "中",
+          "timeframe": "short",
+          "description": "データプライバシーに関する規制が強化され、企業が新たな戦略を模索する必要が生じる。"
+        },
+        {
+          "name": "新興企業の台頭",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "AI関連の新興企業が市場に出現し、競合環境が大きく変化する。"
+        }
+      ],
+      "id": "675b9f15-c46c-43fc-a17f-7bbe6e794994",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "247b030d4aa7ba338b3281cf362811b2",
+      "article_title": "REalloysが戦略的提携を発表",
+      "theme": "energy_resources",
+      "my_scenario": "技術革新による代替素材の開発",
+      "my_confidence": "中",
+      "my_reasoning": "",
+      "ai_scenarios": [
+        {
+          "name": "供給網の安定化",
+          "probability": "高",
+          "timeframe": "mid",
+          "description": "REalloysが提携を成功させ、希土類供給が安定し、米国の防衛産業が成長する。"
+        },
+        {
+          "name": "中国の反発と報復",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "中国が報復措置を講じ、米国の希土類供給が圧迫されるリスクが増大する。"
+        },
+        {
+          "name": "技術革新による代替素材の開発",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "希土類の代替となる新技術が開発され、需要が減少する可能性。"
+        }
+      ],
+      "id": "55659353-90f6-4533-b209-3aa00392bf07",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    },
+    {
+      "article_id": "32ab0f5dba05d3db40cda4a333e5a94d",
+      "article_title": "カンボジアがサイバー詐欺リーダーを中国に送還",
+      "theme": "crime_drugs",
+      "my_scenario": "サイバー犯罪の進化",
+      "my_confidence": "中",
+      "my_reasoning": "人間を介さないAIを利用した分岐にも対応してくる",
+      "ai_scenarios": [
+        {
+          "name": "国際的なサイバー犯罪対策の強化",
+          "probability": "高",
+          "timeframe": "short",
+          "description": "各国が協力してサイバー犯罪を取り締まる体制が整備され、法執行機関の連携が強化される。"
+        },
+        {
+          "name": "サイバー犯罪の進化",
+          "probability": "中",
+          "timeframe": "mid",
+          "description": "犯罪者が新たな手法を取り入れ、サイバー犯罪がより巧妙化する可能性がある。"
+        },
+        {
+          "name": "サイバーセキュリティ市場の拡大",
+          "probability": "中",
+          "timeframe": "long",
+          "description": "サイバー犯罪の脅威を受けて、企業や政府がサイバーセキュリティに投資を増やし、市場が拡大する。"
+        }
+      ],
+      "id": "160e0ed3-52f3-4d12-9b21-e68932bbf0db",
+      "date": "2026-04-02",
+      "status": "ongoing",
+      "verification_date": null,
+      "actual_outcome": null,
+      "score": null,
+      "lessons": null
+    }
+  ],
+  "latest_deep_dive": {
+    "id": "dd-2026-04-04",
+    "week_start": "2026-03-29",
+    "week_end": "2026-04-04",
+    "theme": "economic_policy",
+    "theme_label_ja": "経済政策",
+    "article_count": 8,
+    "report": {
+      "title": "経済政策と市場動向：米国金利と地政学リスクの影響",
+      "executive_summary": "今週の経済政策に関する動向では、米国のFF金利が3.64%（2026年3月時点）と高止まりしており、米10年国債利回りが4.31%（2026年4月2日時点）に達する中、グローバルな石油危機が経済全体に影響を及ぼしています。これにより、パキスタンのシェバズ首相は農業や公共サービスへの投資を提唱。一方で、世界銀行のデータによれば、2024年の日本のGDP成長率は0.104%と低調であり、国内経済の停滞が懸念されます。さらに、FAO食料価格指数が124.5（2025年12月）と高水準を維持しており、食料インフレが進行中です。これらの要因が複合的に作用し、投資家や政策立案者にとって重要な意思決定を迫る週となりました。",
+      "key_developments": [
+        {
+          "headline": "シェバズ首相、グローバルな石油危機に対応を呼びかけ",
+          "detail": "US-イスラエルのイラン戦争による石油危機が経済に打撃を与えており、パキスタン政府は農業支援と公共サービスへの投資を計画。これにより、経済のマクロ安定化を目指す。",
+          "date": "2026-04-02"
+        },
+        {
+          "headline": "GameFiトークン市場価値が42.5億ドルに縮小",
+          "detail": "ゲームトークン市場は2021年のピークから98%下落し、現在の市場価値は42.5億ドル。投機的取引から実用的利用への移行が進展中。",
+          "date": "2026-04-02"
+        },
+        {
+          "headline": "米10年国債利回りが4.31%に上昇",
+          "detail": "米国の10年国債利回りが4.31%（2026年4月2日時点）に達し、金融市場に影響を与えている。期待インフレ率は2.36%（2026年4月3日時点）。",
+          "date": "2026-04-02"
+        }
+      ],
+      "trend_analysis": "今週の主要なトレンドとして、地政学的リスクの高まりと金融市場の動向が挙げられます。パキスタンのシェバズ首相がUS-イスラエルのイラン戦争による石油危機に対応するため、農業支援と公共サービスへの投資を提唱しました。これに関連して、FAO食料価格指数は124.5（2025年12月）と高水準を維持しており、食料インフレが進行中です。一方で、米国のFF金利が3.64%（2026年3月時点）と高止まりしており、米10年国債利回りが4.31%（2026年4月2日時点）に上昇。これにより、ドル高（米ドル実効為替レート120.8851、2026年3月27日時点）が進み、エネルギー輸入コストの増加が懸念されます。また、GameFiトークン市場が98%下落し、42.5億ドルに縮小したことは、投機的市場の終焉を示唆しています。これらの要素が複合的に絡み合い、経済政策の方向性に影響を与えています。",
+      "cross_theme_impact": [
+        {
+          "theme": "エネルギー危機",
+          "impact": "石油価格高騰により、エネルギー集約型産業のコストが上昇（FAO油脂価格指数165.2）。"
+        },
+        {
+          "theme": "金融政策",
+          "impact": "FF金利3.64%と米10年国債利回り4.31%がドル高を助長、日本の輸入コスト増加の可能性。"
+        },
+        {
+          "theme": "資源配分",
+          "impact": "パキスタンの農業支援策は、食料価格の安定化に寄与する可能性（FAO穀物価格指数107.5）。"
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "石油価格高騰が続く",
+          "probability": "高",
+          "description": "イラン情勢が悪化する場合、原油価格がさらに上昇。FAO油脂価格指数が170を超えると、世界的な食料インフレが加速する可能性が高い。"
+        },
+        {
+          "name": "米金利高止まりによるドル高継続",
+          "probability": "中〜高",
+          "description": "FF金利が3.64%を維持し、米ドル実効為替レートが123を超えると、新興市場経済に圧力がかかる可能性がある。"
+        },
+        {
+          "name": "GameFi市場の再編",
+          "probability": "中",
+          "description": "ゲームトークン市場が実利用にシフトし、2026年末までに市場価値が50億ドルを回復する可能性がある。"
+        }
+      ],
+      "japan_implications": "日本の投資家と経営者にとって、米国の高金利（FF金利3.64%、米10年国債利回り4.31%）はドル高（米ドル実効為替レート120.8851）をもたらし、エネルギーや食料の輸入コストを押し上げるリスクがある。特に、日本の原油輸入額が61,716百万USD（2025年）に達しており、エネルギー価格の高騰が企業収益を圧迫する可能性が高い。さらに、FAO食料価格指数が124.5（2025年12月）と高水準を維持しているため、食品関連セクターではコスト増加が避けられない。一方、通信株やテクノロジー株は安定した収益が期待できるため、ポートフォリオの見直しを進めるべきである。また、国内消費者物価指数（CPI）が112.2（2026年2月）と横ばいであることから、内需関連の成長は限定的であり、輸出主導のセクターに注力する戦略が求められる。",
+      "watch_next_week": [
+        "米国CPI発表",
+        "原油価格の推移",
+        "日本の貿易収支データ"
+      ],
+      "notable_services": [
+        {
+          "name": "I built a frontpage for personal blogs",
+          "url": "https://text.blogosphere.app/",
+          "description": "個人ブログのフロントページを簡単に作成できるサービス。情報発信の効率化に寄与。",
+          "score": 668
+        },
+        {
+          "name": "Apfel – The free AI already on your Mac",
+          "url": "https://apfel.franzai.com",
+          "description": "Mac上で動作する無料AIツール。業務効率化やデータ分析に活用可能。",
+          "score": 647
+        },
+        {
+          "name": "1-Bit Bonsai, the First Commercially Viable 1-Bit LLMs",
+          "url": "https://prismml.com/",
+          "description": "商用利用可能な1ビットLLM技術。AI分野での新たな可能性を提供。",
+          "score": 420
+        },
+        {
+          "name": "Postgres extension for BM25 relevance-ranked full-text search",
+          "url": "https://github.com/timescale/pg_textsearch",
+          "description": "PostgresでBM25アルゴリズムを用いた全文検索を実現。データベース運用の効率化に寄与。",
+          "score": 201
+        },
+        {
+          "name": "Dull – Instagram Without Reels, YouTube Without Shorts (iOS)",
+          "url": "https://getdull.app",
+          "description": "InstagramやYouTubeの短編動画を排除したシンプルな体験を提供。",
+          "score": 149
+        }
+      ]
+    },
+    "created_at": "2026-04-04T02:52:17.755Z"
+  }
+}
