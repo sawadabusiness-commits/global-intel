@@ -1,0 +1,58 @@
+name: Global Intel Cron Jobs
+
+on:
+  schedule:
+    # ニュース取得+分析: 毎日 19:00 UTC (4:00 JST)
+    - cron: "0 19 * * *"
+    # OSINT取得+深層分析補完+検証: 毎日 20:00 UTC (5:00 JST)
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+    inputs:
+      endpoint:
+        description: "実行するエンドポイント"
+        required: true
+        type: choice
+        options:
+          - cron
+          - osint
+          - osint-weekly
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Determine endpoint
+        id: endpoint
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            EP="${{ inputs.endpoint }}"
+          elif [ "${{ github.event.schedule }}" = "0 19 * * *" ]; then
+            EP="cron"
+          else
+            EP="osint"
+          fi
+
+          if [ "$EP" = "osint-weekly" ]; then
+            echo "url=${{ secrets.APP_URL }}/api/osint?force_weekly=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=${{ secrets.APP_URL }}/api/${EP}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "name=$EP" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger ${{ steps.endpoint.outputs.name }}
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ steps.endpoint.outputs.url }}")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "Status: $HTTP_CODE"
+          echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "::error::API returned $HTTP_CODE"
+            exit 1
+          fi
