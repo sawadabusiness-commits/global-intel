@@ -11,6 +11,10 @@
     {
       "path": "/api/mermaid",
       "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/subsidies",
+      "schedule": "0 22 * * *"
     }
   ]
 }
