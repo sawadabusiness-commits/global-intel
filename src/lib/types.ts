@@ -300,6 +300,21 @@ export interface IntelligenceMemory {
   weekly_summaries: WeeklyMemorySummary[];
 }
 
+// --- 税務情報 ---
+export type TaxLawSource = "kfs" | "nta";
+export type TaxLawCategory = "裁決事例" | "通達" | "質疑応答" | "法令改正" | "その他";
+
+export interface TaxLawItem {
+  id: string;
+  source: TaxLawSource;
+  category: TaxLawCategory;
+  title: string;
+  url: string;
+  summary?: string;
+  published_at: string;
+  fetched_at: string;
+}
+
 // --- Vercel KV のキー設計 ---
 // articles:{date}        → AnalyzedArticle[]
 // predictions:{id}       → Prediction

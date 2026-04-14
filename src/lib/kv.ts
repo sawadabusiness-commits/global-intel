@@ -1,5 +1,5 @@
 import { kv } from "@vercel/kv";
-import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory, Subsidy } from "./types";
+import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory, Subsidy, TaxLawItem } from "./types";
 // Note: OsintSnapshot now uses unified data_points[] instead of separate worldbank/estat fields
 
 // --- 補助金・助成金 ---
@@ -16,6 +16,22 @@ export async function getSubsidies(date: string): Promise<Subsidy[]> {
 
 export async function getLatestSubsidiesDate(): Promise<string | null> {
   return kv.get<string>("meta:last_subsidies");
+}
+
+// --- 税務情報 ---
+export async function saveTaxLaw(date: string, items: TaxLawItem[]) {
+  await kv.set(`taxlaw:${date}`, JSON.stringify(items));
+  await kv.set("meta:last_taxlaw", date);
+}
+
+export async function getTaxLaw(date: string): Promise<TaxLawItem[]> {
+  const data = await kv.get<string>(`taxlaw:${date}`);
+  if (!data) return [];
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
+
+export async function getLatestTaxLawDate(): Promise<string | null> {
+  return kv.get<string>("meta:last_taxlaw");
 }
 
 // --- 記事 ---
