@@ -15,7 +15,7 @@ const INDUSTRY_LABELS: Record<IndustryTag, string> = {
 
 const INDUSTRY_ORDER: IndustryTag[] = ["medical", "welfare", "construction", "food_manufacturing", "retail", "general"];
 
-const REGION_ORDER = ["全国", "広島県", "広島市", "廿日市市", "兵庫県", "宍粟市"];
+const REGION_ORDER = ["広島県", "広島市", "廿日市市", "兵庫県", "宍粟市", "全国"];
 
 // 市は属する県の補助金も利用可能（県補助金は市内事業者に適用されるため）
 const REGION_MATCH_KEYS: Record<string, string[]> = {
