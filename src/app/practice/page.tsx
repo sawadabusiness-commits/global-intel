@@ -1,5 +1,5 @@
-import { getSubsidies, getLatestSubsidiesDate, getTaxLaw, getLatestTaxLawDate, getFredBlog, getLatestFredBlogDate } from "@/lib/kv";
-import type { Subsidy, IndustryTag, TaxLawItem, TaxLawCategory, FredBlogPost } from "@/lib/types";
+import { getSubsidies, getLatestSubsidiesDate, getTaxLaw, getLatestTaxLawDate } from "@/lib/kv";
+import type { Subsidy, IndustryTag, TaxLawItem, TaxLawCategory } from "@/lib/types";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -39,47 +39,6 @@ const TAX_CATEGORY_COLOR: Record<TaxLawCategory, { bg: string; text: string }> =
   "法令改正": { bg: "#10B98120", text: "#10B981" },
   "その他":   { bg: "#64748B20", text: "#94A3B8" },
 };
-
-function FredBlogCard({ post }: { post: FredBlogPost }) {
-  return (
-    <article className="rounded-lg bg-[var(--surface)] border border-[var(--border)] overflow-hidden">
-      <div className="p-4">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#10B98120] text-[#10B981]">
-            FRED Blog
-          </span>
-          <span className="text-[10px] font-mono text-[var(--muted)]">{post.pubDate}</span>
-          <span className="text-[10px] font-mono text-[var(--muted)]">{post.author}</span>
-        </div>
-        <a
-          href={post.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block text-sm font-semibold hover:text-[#38BDF8] transition-colors mb-1"
-        >
-          {post.title_ja}
-        </a>
-        <p className="text-[10px] text-[var(--muted)] italic mb-2">{post.title}</p>
-        <p className="text-xs text-[var(--muted)] leading-relaxed">{post.excerpt_ja}</p>
-      </div>
-      {post.imageUrls.length > 0 && (
-        <div className="px-4 pb-4 space-y-3">
-          {post.imageUrls.map((src, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={src}
-              alt={`Chart ${i + 1}`}
-              className="w-full rounded border border-[var(--border)]"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          ))}
-        </div>
-      )}
-    </article>
-  );
-}
 
 function TaxLawCard({ t }: { t: TaxLawItem }) {
   const col = TAX_CATEGORY_COLOR[t.category];
@@ -188,15 +147,13 @@ function formatDate(iso: string | null | undefined): string {
 const TAX_CATEGORY_ORDER: TaxLawCategory[] = ["裁決事例", "通達", "質疑応答", "法令改正", "その他"];
 
 export default async function PracticePage() {
-  const [date, taxDate, fredMonth] = await Promise.all([
+  const [date, taxDate] = await Promise.all([
     getLatestSubsidiesDate(),
     getLatestTaxLawDate(),
-    getLatestFredBlogDate(),
   ]);
-  const [subsidies, taxlaw, fredPosts]: [Subsidy[], TaxLawItem[], FredBlogPost[]] = await Promise.all([
+  const [subsidies, taxlaw]: [Subsidy[], TaxLawItem[]] = await Promise.all([
     date ? getSubsidies(date) : Promise.resolve([]),
     taxDate ? getTaxLaw(taxDate) : Promise.resolve([]),
-    fredMonth ? getFredBlog(fredMonth) : Promise.resolve([]),
   ]);
 
   // 税務情報 カテゴリ別
@@ -234,8 +191,7 @@ export default async function PracticePage() {
             <h1 className="text-2xl font-bold">実務情報: 補助金・助成金</h1>
             <p className="text-xs text-[var(--muted)] mt-1">
               補助金: {date ?? "未取得"} / {subsidies.length}件 ／
-              税務情報: {taxDate ?? "未取得"} / {taxlaw.length}件 ／
-              FREDブログ: {fredMonth ?? "未取得"} / {fredPosts.length}件
+              税務情報: {taxDate ?? "未取得"} / {taxlaw.length}件
             </p>
           </div>
           <Link href="/" className="text-xs text-[#38BDF8] hover:underline">
@@ -243,25 +199,11 @@ export default async function PracticePage() {
           </Link>
         </header>
 
-        {subsidies.length === 0 && taxlaw.length === 0 && chushoItems.length === 0 && fredPosts.length === 0 && (
+        {subsidies.length === 0 && taxlaw.length === 0 && chushoItems.length === 0 && (
           <div className="py-12 text-center text-[var(--muted)]">
             <p>まだデータが取得されていません。</p>
             <p className="text-xs mt-2">Cron実行後（毎日22:00 UTC）に表示されます。</p>
           </div>
-        )}
-
-        {/* FRED Blog */}
-        {fredPosts.length > 0 && (
-          <>
-            <h2 className="text-lg font-bold mb-4 text-[#10B981]">
-              FRED Blog — 米連邦準備銀行 経済分析
-            </h2>
-            <section className="mb-10 space-y-4">
-              {fredPosts.map((post) => (
-                <FredBlogCard key={post.id} post={post} />
-              ))}
-            </section>
-          </>
         )}
 
         {/* 税務情報 */}
