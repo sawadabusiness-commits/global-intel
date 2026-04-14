@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllSubsidies } from "@/lib/subsidies";
-import { saveSubsidies } from "@/lib/kv";
+import { fetchAllTaxLaw } from "@/lib/taxlaw";
+import { saveSubsidies, saveTaxLaw } from "@/lib/kv";
 
 export const maxDuration = 60;
 
@@ -15,17 +16,31 @@ export async function GET(req: NextRequest) {
   const today = jst.toISOString().split("T")[0];
 
   const startTime = Date.now();
-  const subsidies = await fetchAllSubsidies();
+  const [subsidies, taxlaw] = await Promise.all([
+    fetchAllSubsidies(),
+    fetchAllTaxLaw(),
+  ]);
 
-  // 重複排除（同じURLは1件に）
-  const seen = new Set<string>();
+  // 補助金 重複排除
+  const seenS = new Set<string>();
   const deduped = subsidies.filter((s) => {
-    if (seen.has(s.url)) return false;
-    seen.add(s.url);
+    if (seenS.has(s.url)) return false;
+    seenS.add(s.url);
     return true;
   });
 
-  await saveSubsidies(today, deduped);
+  // 税務情報 重複排除
+  const seenT = new Set<string>();
+  const dedupedTax = taxlaw.filter((t) => {
+    if (seenT.has(t.url)) return false;
+    seenT.add(t.url);
+    return true;
+  });
+
+  await Promise.all([
+    saveSubsidies(today, deduped),
+    saveTaxLaw(today, dedupedTax),
+  ]);
 
   // ソース別カウント
   const sourceCounts: Record<string, number> = {};
@@ -36,8 +51,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     date: today,
-    total: deduped.length,
-    sources: sourceCounts,
+    subsidies: { total: deduped.length, sources: sourceCounts },
+    taxlaw: { total: dedupedTax.length },
     elapsed_ms: Date.now() - startTime,
   });
 }
