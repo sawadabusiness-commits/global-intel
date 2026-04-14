@@ -17,8 +17,19 @@ const INDUSTRY_ORDER: IndustryTag[] = ["medical", "welfare", "construction", "fo
 
 const REGION_ORDER = ["全国", "広島県", "広島市", "廿日市市", "兵庫県", "宍粟市"];
 
+// 市は属する県の補助金も利用可能（県補助金は市内事業者に適用されるため）
+const REGION_MATCH_KEYS: Record<string, string[]> = {
+  "全国": ["全国"],
+  "広島県": ["広島県"],
+  "広島市": ["広島県", "広島市"],
+  "廿日市市": ["広島県", "廿日市市"],
+  "兵庫県": ["兵庫県"],
+  "宍粟市": ["兵庫県", "宍粟市"],
+};
+
 function matchRegion(subsidy: Subsidy, region: string): boolean {
-  return subsidy.target_area.some((a) => a.includes(region));
+  const keys = REGION_MATCH_KEYS[region] ?? [region];
+  return subsidy.target_area.some((a) => keys.some((k) => a.includes(k)));
 }
 
 function SubsidyCard({ s }: { s: Subsidy }) {
@@ -124,29 +135,8 @@ export default async function PracticePage() {
           </div>
         )}
 
-        {subsidies.length > 0 && (
-          <h2 className="text-lg font-bold mb-4 text-[#38BDF8]">業種別</h2>
-        )}
-
-        {INDUSTRY_ORDER.map((tag) => {
-          const list = byIndustry.get(tag);
-          if (!list || list.length === 0) return null;
-          return (
-            <section key={tag} className="mb-8">
-              <h2 className="text-sm font-bold mb-3 pb-2 border-b border-[var(--border)]">
-                {INDUSTRY_LABELS[tag]}（{list.length}件）
-              </h2>
-              <div className="space-y-2">
-                {list.map((s) => (
-                  <SubsidyCard key={s.id} s={s} />
-                ))}
-              </div>
-            </section>
-          );
-        })}
-
         {byRegion.size > 0 && (
-          <h2 className="text-lg font-bold mb-4 mt-10 text-[#38BDF8]">地域別</h2>
+          <h2 className="text-lg font-bold mb-4 text-[#38BDF8]">地域別</h2>
         )}
 
         {REGION_ORDER.map((region) => {
@@ -160,6 +150,27 @@ export default async function PracticePage() {
               <div className="space-y-2">
                 {list.map((s) => (
                   <SubsidyCard key={`${region}-${s.id}`} s={s} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        {subsidies.length > 0 && (
+          <h2 className="text-lg font-bold mb-4 mt-10 text-[#38BDF8]">業種別</h2>
+        )}
+
+        {INDUSTRY_ORDER.map((tag) => {
+          const list = byIndustry.get(tag);
+          if (!list || list.length === 0) return null;
+          return (
+            <section key={tag} className="mb-8">
+              <h2 className="text-sm font-bold mb-3 pb-2 border-b border-[var(--border)]">
+                {INDUSTRY_LABELS[tag]}（{list.length}件）
+              </h2>
+              <div className="space-y-2">
+                {list.map((s) => (
+                  <SubsidyCard key={s.id} s={s} />
                 ))}
               </div>
             </section>
