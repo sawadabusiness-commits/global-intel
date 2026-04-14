@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllGdeltData, fetchAllDataSources, detectAnomalies, fetchShowHN } from "@/lib/osint";
-import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive, batchDeepAnalyze, updateNarratives, auditSummaryQuality } from "@/lib/github-models";
+import { batchVerifyWithOsint, generateNovelArticle, generateWeeklyDeepDive, batchDeepAnalyze, auditSummaryQuality } from "@/lib/github-models";
 import {
   getArticles, getLatestDate, saveArticles,
   saveOsintSnapshot, getOsintSnapshot, getLatestOsintDate,
@@ -9,7 +9,7 @@ import {
   getMemory, saveMemory,
 } from "@/lib/kv";
 import { THEME_MAP } from "@/lib/themes";
-import { updateKeyIndicators, formatIndicatorContext, formatThemeContext, formatWeeklyContext, buildNarrativeUpdateInput, createEmptyMemory } from "@/lib/memory";
+import { updateKeyIndicators, formatIndicatorContext, formatThemeContext, formatWeeklyContext, createEmptyMemory } from "@/lib/memory";
 import type { OsintSnapshot, OsintArticle, ThemeId, WeeklyDeepDive, AnalyzedArticle } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -296,19 +296,9 @@ export async function GET(req: NextRequest) {
         // Phase 1: 指標トラッカー更新（コード処理のみ）
         const updatedIndicators = updateKeyIndicators(currentMemory, dataPoints, today);
 
-        // Phase 2: テーマナラティブ更新（AI 1回、残り時間が十分な場合のみ）
-        let updatedNarratives = currentMemory.theme_narratives;
+        // theme_narratives は既存データをそのまま維持（更新処理は廃止）
+        const updatedNarratives = currentMemory.theme_narratives;
         const latestArticles = latestDate ? await getArticles(latestDate) : [];
-        const narrativeRemaining = 55000 - (Date.now() - startTime);
-        if (narrativeRemaining > 10000 && latestArticles.length > 0) {
-          const narrativeInput = buildNarrativeUpdateInput(
-            currentMemory,
-            latestArticles,
-            anomalies,
-            updatedIndicators,
-          );
-          updatedNarratives = await updateNarratives(narrativeInput, today, currentMemory.theme_narratives);
-        }
 
         // 週次サマリー追記（土曜のみ）
         let weeklySummaries = currentMemory.weekly_summaries;
