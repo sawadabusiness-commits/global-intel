@@ -7,6 +7,10 @@
     {
       "path": "/api/osint",
       "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/mermaid",
+      "schedule": "0 21 * * *"
     }
   ]
 }
