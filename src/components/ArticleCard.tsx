@@ -4,6 +4,7 @@ import { useState } from "react";
 import { THEME_MAP, IMPACT_LEVELS, TIMEFRAMES } from "@/lib/themes";
 import type { AnalyzedArticle, GeminiAnalysis, OsintVerification } from "@/lib/types";
 import AnalystTabs from "./AnalystTabs";
+import MermaidDiagram from "./MermaidDiagram";
 
 const VERDICT_STYLES = {
   supported: { label: "OSINT裏付け", color: "#10B981" },
@@ -173,6 +174,12 @@ export default function ArticleCard({ article, date, isRead, onRead, osintVerifi
               >
                 再試行
               </button>
+            </div>
+          )}
+          {article.mermaid && (
+            <div className="mt-4 p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border)]">
+              <div className="text-[10px] font-mono text-[var(--muted)] mb-2">図解</div>
+              <MermaidDiagram code={article.mermaid} id={article.id} />
             </div>
           )}
           {analysis && <AnalystTabs analysis={analysis} articleId={article.id} articleTitle={article.title_ja} osintVerification={osintVerification} />}

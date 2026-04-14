@@ -539,6 +539,58 @@ export async function updateNarratives(
   return updated;
 }
 
+// --- Mermaid図解生成 ---
+
+const MERMAID_PROMPT = `あなたはニュース記事の構造を図解する専門家です。
+以下の記事の要点を Mermaid 記法のダイアグラムで表現してください。
+
+【要件】
+- flowchart TD / graph LR / sequenceDiagram / mindmap のうち最適なものを選択
+- ノードラベルは日本語、10文字以内目安
+- 因果関係・時系列・構造のいずれかを明確に表現
+- 出力は Mermaid コードのみ（前文・バックティック・説明文なし）
+- ノード数は5〜12個に収める`;
+
+function isValidMermaid(code: string): boolean {
+  const trimmed = code.trim();
+  return /^(flowchart|graph|sequenceDiagram|mindmap|stateDiagram|classDiagram)\b/.test(trimmed);
+}
+
+export async function generateMermaid(article: {
+  title_ja: string;
+  summary_ja: string;
+}): Promise<string | null> {
+  const userPrompt = `記事タイトル: ${article.title_ja}\n\n記事要約: ${article.summary_ja}`;
+  try {
+    const res = await fetch(GITHUB_MODELS_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: MERMAID_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: 1500,
+        temperature: 0.3,
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text: string = data.choices?.[0]?.message?.content ?? "";
+    const cleaned = text
+      .replace(/^```(?:mermaid)?\s*/i, "")
+      .replace(/```\s*$/, "")
+      .trim();
+    return isValidMermaid(cleaned) ? cleaned : null;
+  } catch {
+    return null;
+  }
+}
+
 // --- 深層分析（GitHub Models版、3記事ずつ順次バッチ） ---
 const DEEP_CHUNK = 3;
 
