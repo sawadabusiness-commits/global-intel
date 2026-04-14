@@ -32,6 +32,26 @@ function matchesTargetArea(area: string): boolean {
   return TARGET_REGIONS.some((r) => area.includes(r));
 }
 
+// 顧問先業種に該当しない製造業系・鉱業系を除外
+// ただし food_manufacturing（パン製造小売）は顧問先なので除外しない
+const EXCLUDE_KEYWORDS = [
+  "鉱業", "鉱山", "採掘",
+  "重工業", "鉄鋼", "金属加工", "素材産業",
+  "化学工業", "石油化学", "プラスチック製造",
+  "自動車製造", "自動車部品", "機械製造",
+  "電機製造", "電子部品製造", "半導体製造",
+  "造船", "航空機", "繊維製造",
+];
+
+export function shouldExclude(title: string, summary?: string): boolean {
+  const text = title + (summary ?? "");
+  // 食品製造は顧問先なので除外対象から守る
+  if (["食品", "食料", "飲食", "製パン", "製菓", "加工食品"].some((k) => text.includes(k))) {
+    return false;
+  }
+  return EXCLUDE_KEYWORDS.some((kw) => text.includes(kw));
+}
+
 // --- jGrants API ---
 
 interface JGrantsRaw {
@@ -56,7 +76,9 @@ export async function fetchJGrants(): Promise<Subsidy[]> {
     return items
       .filter((it) => {
         const area = it.target_area_search ?? "";
-        return !area || matchesTargetArea(area);
+        if (area && !matchesTargetArea(area)) return false;
+        if (shouldExclude(it.title)) return false;
+        return true;
       })
       .map((it) => {
         const areas = (it.target_area_search ?? "全国")
@@ -112,6 +134,7 @@ export async function fetchMhlwSubsidies(): Promise<Subsidy[]> {
 
     return items
       .filter((it) => SUBSIDY_KEYWORDS_RSS.some((kw) => (it.title ?? "").includes(kw)))
+      .filter((it) => !shouldExclude(it.title ?? "", it.description))
       .map((it) => ({
         id: `mhlw:${it.link}`,
         source: "mhlw" as const,

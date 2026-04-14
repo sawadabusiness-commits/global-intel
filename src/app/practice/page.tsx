@@ -15,6 +15,61 @@ const INDUSTRY_LABELS: Record<IndustryTag, string> = {
 
 const INDUSTRY_ORDER: IndustryTag[] = ["medical", "welfare", "construction", "food_manufacturing", "retail", "general"];
 
+const REGION_ORDER = ["全国", "広島県", "広島市", "廿日市市", "兵庫県", "宍粟市"];
+
+function matchRegion(subsidy: Subsidy, region: string): boolean {
+  return subsidy.target_area.some((a) => a.includes(region));
+}
+
+function SubsidyCard({ s }: { s: Subsidy }) {
+  return (
+    <article className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
+      <div className="flex items-start gap-2 flex-wrap">
+        <span
+          className="px-2 py-0.5 rounded text-[10px] font-mono"
+          style={{
+            background: s.source === "jgrants" ? "#6366F120" : "#10B98120",
+            color: s.source === "jgrants" ? "#6366F1" : "#10B981",
+          }}
+        >
+          {s.source === "jgrants" ? "jGrants" : "厚労省"}
+        </span>
+        {s.target_area.slice(0, 3).map((a) => (
+          <span
+            key={a}
+            className="px-2 py-0.5 rounded text-[10px] font-mono bg-[var(--surface-2)] text-[var(--muted)]"
+          >
+            {a}
+          </span>
+        ))}
+        {s.amount_max && (
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#F59E0B20] text-[#F59E0B]">
+            上限 {formatAmount(s.amount_max)}
+          </span>
+        )}
+        {s.deadline && (
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#EF444420] text-[#EF4444]">
+            締切 {formatDate(s.deadline)}
+          </span>
+        )}
+      </div>
+      <a
+        href={s.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block mt-2 text-sm hover:text-[#38BDF8] transition-colors"
+      >
+        {s.title}
+      </a>
+      {s.summary && (
+        <p className="text-xs text-[var(--muted)] mt-1 line-clamp-2">
+          {s.summary}
+        </p>
+      )}
+    </article>
+  );
+}
+
 function formatAmount(n: number | null | undefined): string {
   if (!n) return "";
   if (n >= 100000000) return `${(n / 100000000).toFixed(1)}億円`;
@@ -40,6 +95,12 @@ export default async function PracticePage() {
     }
   }
 
+  const byRegion = new Map<string, Subsidy[]>();
+  for (const region of REGION_ORDER) {
+    const matched = subsidies.filter((s) => matchRegion(s, region));
+    if (matched.length > 0) byRegion.set(region, matched);
+  }
+
   return (
     <main className="min-h-screen bg-[var(--bg)] text-[#E2E8F0] p-6">
       <div className="max-w-5xl mx-auto">
@@ -63,6 +124,10 @@ export default async function PracticePage() {
           </div>
         )}
 
+        {subsidies.length > 0 && (
+          <h2 className="text-lg font-bold mb-4 text-[#38BDF8]">業種別</h2>
+        )}
+
         {INDUSTRY_ORDER.map((tag) => {
           const list = byIndustry.get(tag);
           if (!list || list.length === 0) return null;
@@ -73,53 +138,28 @@ export default async function PracticePage() {
               </h2>
               <div className="space-y-2">
                 {list.map((s) => (
-                  <article
-                    key={s.id}
-                    className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]"
-                  >
-                    <div className="flex items-start gap-2 flex-wrap">
-                      <span
-                        className="px-2 py-0.5 rounded text-[10px] font-mono"
-                        style={{
-                          background: s.source === "jgrants" ? "#6366F120" : "#10B98120",
-                          color: s.source === "jgrants" ? "#6366F1" : "#10B981",
-                        }}
-                      >
-                        {s.source === "jgrants" ? "jGrants" : "厚労省"}
-                      </span>
-                      {s.target_area.slice(0, 3).map((a) => (
-                        <span
-                          key={a}
-                          className="px-2 py-0.5 rounded text-[10px] font-mono bg-[var(--surface-2)] text-[var(--muted)]"
-                        >
-                          {a}
-                        </span>
-                      ))}
-                      {s.amount_max && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#F59E0B20] text-[#F59E0B]">
-                          上限 {formatAmount(s.amount_max)}
-                        </span>
-                      )}
-                      {s.deadline && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#EF444420] text-[#EF4444]">
-                          締切 {formatDate(s.deadline)}
-                        </span>
-                      )}
-                    </div>
-                    <a
-                      href={s.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block mt-2 text-sm hover:text-[#38BDF8] transition-colors"
-                    >
-                      {s.title}
-                    </a>
-                    {s.summary && (
-                      <p className="text-xs text-[var(--muted)] mt-1 line-clamp-2">
-                        {s.summary}
-                      </p>
-                    )}
-                  </article>
+                  <SubsidyCard key={s.id} s={s} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        {byRegion.size > 0 && (
+          <h2 className="text-lg font-bold mb-4 mt-10 text-[#38BDF8]">地域別</h2>
+        )}
+
+        {REGION_ORDER.map((region) => {
+          const list = byRegion.get(region);
+          if (!list || list.length === 0) return null;
+          return (
+            <section key={region} className="mb-8">
+              <h2 className="text-sm font-bold mb-3 pb-2 border-b border-[var(--border)]">
+                {region}（{list.length}件）
+              </h2>
+              <div className="space-y-2">
+                {list.map((s) => (
+                  <SubsidyCard key={`${region}-${s.id}`} s={s} />
                 ))}
               </div>
             </section>
