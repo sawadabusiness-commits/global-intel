@@ -43,7 +43,7 @@ function SubsidyCard({ s }: { s: Subsidy }) {
             color: s.source === "jgrants" ? "#6366F1" : "#10B981",
           }}
         >
-          {s.source === "jgrants" ? "jGrants" : s.source === "mhlw" ? "厚労省" : s.source === "city-hatsukaichi" ? "廿日市市" : "宍粟市"}
+          {s.source === "jgrants" ? "jGrants" : s.source === "mhlw" ? "厚労省" : s.source === "city-hatsukaichi" ? "廿日市市" : s.source === "city-shiso" ? "宍粟市" : "広島市"}
         </span>
         {s.target_area.slice(0, 3).map((a) => (
           <span

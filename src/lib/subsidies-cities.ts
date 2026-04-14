@@ -134,12 +134,133 @@ export async function fetchShisoSubsidies(): Promise<Subsidy[]> {
   }
 }
 
+// --- 広島市 ---
+
+const HIROSHIMA_BASE = "https://www.city.hiroshima.lg.jp";
+const HIROSHIMA_CATEGORY_URLS = [
+  "/business/sangyo/1021490/index.html",            // 中小企業支援
+  "/business/sangyo/1021490/1026451/index.html",    // 経営支援・創業支援
+  "/business/sangyo/1021490/1005979/index.html",    // 融資制度
+  "/business/sangyo/1021490/1024252/index.html",    // 企業支援
+  "/business/sangyo/1021492/index.html",            // 企業誘致・創業推進
+  "/business/sangyo/1021492/1038804/index.html",    // 創業支援
+  "/business/sangyo/1021490/1026494/1026495/index.html", // 商店街振興
+  "/business/koyo_rodo/1021504/index.html",         // 雇用・労働
+];
+const HIROSHIMA_RSS = "https://www.city.hiroshima.lg.jp/news.rss";
+
+function resolveHiroshimaUrl(href: string, baseUrl: string): string {
+  if (href.startsWith("http")) return href;
+  if (href.startsWith("/")) return HIROSHIMA_BASE + href;
+  // 相対パス ../../ を解決
+  const baseDir = baseUrl.replace(/\/[^\/]*$/, "/");
+  const url = new URL(href, baseDir);
+  return url.toString();
+}
+
+async function fetchHiroshimaCategory(path: string): Promise<Subsidy[]> {
+  const url = HIROSHIMA_BASE + path;
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(5000),
+    headers: { "User-Agent": UA },
+  });
+  if (!res.ok) return [];
+  const html = await res.text();
+  const $ = cheerio.load(html);
+  const now = new Date().toISOString();
+  const items: Subsidy[] = [];
+
+  $("a").each((_, el) => {
+    const $a = $(el);
+    const title = $a.text().trim();
+    const href = $a.attr("href") ?? "";
+    if (!title || !href) return;
+    if (!/\d{7}\.html$/.test(href)) return; // 記事URL（7桁数字）のみ
+    if (!containsKeyword(title)) return;
+    if (shouldExclude(title)) return;
+
+    const resolvedUrl = resolveHiroshimaUrl(href, url);
+    items.push({
+      id: `hiroshima:${resolvedUrl}`,
+      source: "city-hiroshima",
+      title,
+      url: resolvedUrl,
+      summary: undefined,
+      published_at: now.slice(0, 10),
+      deadline: null,
+      target_area: ["広島市"],
+      industry_tags: tagIndustries(title),
+      amount_max: null,
+      fetched_at: now,
+    });
+  });
+
+  return items;
+}
+
+async function fetchHiroshimaRss(): Promise<Subsidy[]> {
+  try {
+    const res = await fetch(HIROSHIMA_RSS, {
+      signal: AbortSignal.timeout(5000),
+      headers: { "User-Agent": UA },
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    const { XMLParser } = await import("fast-xml-parser");
+    const parser = new XMLParser({ ignoreAttributes: false });
+    const parsed = parser.parse(xml);
+    const items: { title: string; link: string; pubDate?: string; description?: string }[] =
+      parsed?.rss?.channel?.item ?? [];
+    const now = new Date().toISOString();
+
+    return items
+      .filter((it) => containsKeyword(it.title ?? ""))
+      .filter((it) => !shouldExclude(it.title ?? "", it.description))
+      .map((it) => ({
+        id: `hiroshima:${it.link}`,
+        source: "city-hiroshima" as const,
+        title: it.title,
+        url: it.link,
+        summary: it.description || undefined,
+        published_at: it.pubDate ? new Date(it.pubDate).toISOString().slice(0, 10) : now.slice(0, 10),
+        deadline: null,
+        target_area: ["広島市"],
+        industry_tags: tagIndustries(it.title ?? ""),
+        amount_max: null,
+        fetched_at: now,
+      }));
+  } catch (e) {
+    console.error("Hiroshima RSS failed:", e);
+    return [];
+  }
+}
+
+export async function fetchHiroshimaSubsidies(): Promise<Subsidy[]> {
+  try {
+    const results = await Promise.all([
+      ...HIROSHIMA_CATEGORY_URLS.map((p) => fetchHiroshimaCategory(p).catch(() => [] as Subsidy[])),
+      fetchHiroshimaRss(),
+    ]);
+    const all = results.flat();
+    const seen = new Set<string>();
+    return all.filter((it) => {
+      if (seen.has(it.url)) return false;
+      seen.add(it.url);
+      return true;
+    });
+  } catch (e) {
+    console.error("Hiroshima fetch failed:", e);
+    return [];
+  }
+}
+
 // --- 統合 ---
 
 export async function fetchAllCitySubsidies(): Promise<Subsidy[]> {
-  const [hatsukaichi, shiso] = await Promise.all([
+  const [hatsukaichi, shiso, hiroshima] = await Promise.all([
     fetchHatsukaichiSubsidies(),
     fetchShisoSubsidies(),
+    fetchHiroshimaSubsidies(),
   ]);
-  return [...hatsukaichi, ...shiso];
+  return [...hatsukaichi, ...shiso, ...hiroshima];
 }
