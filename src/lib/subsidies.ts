@@ -157,9 +157,11 @@ export async function fetchMhlwSubsidies(): Promise<Subsidy[]> {
 // --- 統合フェッチ ---
 
 export async function fetchAllSubsidies(): Promise<Subsidy[]> {
-  const [jgrants, mhlw] = await Promise.all([
+  const { fetchAllCitySubsidies } = await import("./subsidies-cities");
+  const [jgrants, mhlw, cities] = await Promise.all([
     fetchJGrants(),
     fetchMhlwSubsidies(),
+    fetchAllCitySubsidies(),
   ]);
-  return [...jgrants, ...mhlw];
+  return [...jgrants, ...mhlw, ...cities];
 }
