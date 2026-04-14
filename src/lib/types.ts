@@ -117,6 +117,23 @@ export interface GeminiAnalysis {
   summary_ja: string;
 }
 
+// --- 補助金・助成金 ---
+export type IndustryTag = "medical" | "welfare" | "construction" | "food_manufacturing" | "retail" | "general";
+
+export interface Subsidy {
+  id: string;              // ソース別一意ID
+  source: "jgrants" | "mhlw";
+  title: string;
+  url: string;
+  summary?: string;        // 本文抜粋
+  published_at: string;    // ISO
+  deadline?: string | null;
+  target_area: string[];   // ["全国"] or ["広島県","兵庫県"] 等
+  industry_tags: IndustryTag[];
+  amount_max?: number | null;
+  fetched_at: string;
+}
+
 // --- 記事（分析済み） ---
 export interface AnalyzedArticle {
   id: string;

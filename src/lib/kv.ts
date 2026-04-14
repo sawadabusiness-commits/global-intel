@@ -1,6 +1,22 @@
 import { kv } from "@vercel/kv";
-import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory } from "./types";
+import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory, Subsidy } from "./types";
 // Note: OsintSnapshot now uses unified data_points[] instead of separate worldbank/estat fields
+
+// --- 補助金・助成金 ---
+export async function saveSubsidies(date: string, subsidies: Subsidy[]) {
+  await kv.set(`subsidies:${date}`, JSON.stringify(subsidies));
+  await kv.set("meta:last_subsidies", date);
+}
+
+export async function getSubsidies(date: string): Promise<Subsidy[]> {
+  const data = await kv.get<string>(`subsidies:${date}`);
+  if (!data) return [];
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
+
+export async function getLatestSubsidiesDate(): Promise<string | null> {
+  return kv.get<string>("meta:last_subsidies");
+}
 
 // --- 記事 ---
 export async function saveArticles(date: string, articles: AnalyzedArticle[]) {
