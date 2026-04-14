@@ -1,5 +1,5 @@
 import { kv } from "@vercel/kv";
-import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory, Subsidy, TaxLawItem } from "./types";
+import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory, Subsidy, TaxLawItem, FredBlogPost } from "./types";
 // Note: OsintSnapshot now uses unified data_points[] instead of separate worldbank/estat fields
 
 // --- 補助金・助成金 ---
@@ -131,6 +131,22 @@ export async function getOsintArticles(date: string): Promise<OsintArticle[]> {
   const data = await kv.get<string>(`osint_articles:${date}`);
   if (!data) return [];
   return typeof data === "string" ? JSON.parse(data) : data;
+}
+
+// --- FRED Blog ---
+export async function saveFredBlog(yearMonth: string, posts: FredBlogPost[]) {
+  await kv.set(`fredblog:${yearMonth}`, JSON.stringify(posts));
+  await kv.set("meta:last_fredblog", yearMonth);
+}
+
+export async function getFredBlog(yearMonth: string): Promise<FredBlogPost[]> {
+  const data = await kv.get<string>(`fredblog:${yearMonth}`);
+  if (!data) return [];
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
+
+export async function getLatestFredBlogDate(): Promise<string | null> {
+  return kv.get<string>("meta:last_fredblog");
 }
 
 // --- インテリジェンス・メモリ ---
