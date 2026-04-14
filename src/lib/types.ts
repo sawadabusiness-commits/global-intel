@@ -315,6 +315,34 @@ export interface TaxLawItem {
   fetched_at: string;
 }
 
+// --- 柳谷税理士ブログ ---
+export interface TaxBlogPost {
+  id: string;
+  title: string;
+  url: string;
+  pubDate: string;
+  author: string;
+  category: string;
+  contentHtml: string;
+  excerpt: string;
+  juniorExplanation: string;
+  fetched_at: string;
+}
+
+// --- FRED Blog ---
+export interface FredBlogPost {
+  id: string;
+  title: string;
+  title_ja: string;
+  url: string;
+  pubDate: string;
+  author: string;
+  excerpt: string;
+  excerpt_ja: string;
+  imageUrls: string[];
+  fetched_at: string;
+}
+
 // --- Vercel KV のキー設計 ---
 // articles:{date}        → AnalyzedArticle[]
 // predictions:{id}       → Prediction
