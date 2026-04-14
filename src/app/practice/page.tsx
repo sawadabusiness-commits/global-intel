@@ -39,11 +39,19 @@ function SubsidyCard({ s }: { s: Subsidy }) {
         <span
           className="px-2 py-0.5 rounded text-[10px] font-mono"
           style={{
-            background: s.source === "jgrants" ? "#6366F120" : "#10B98120",
-            color: s.source === "jgrants" ? "#6366F1" : "#10B981",
+            background:
+              s.source === "jgrants" ? "#6366F120" :
+              s.source === "j-net21" ? "#8B5CF620" :
+              s.source === "meti" ? "#F97316" + "20" :
+              "#10B98120",
+            color:
+              s.source === "jgrants" ? "#6366F1" :
+              s.source === "j-net21" ? "#8B5CF6" :
+              s.source === "meti" ? "#F97316" :
+              "#10B981",
           }}
         >
-          {s.source === "jgrants" ? "jGrants" : s.source === "mhlw" ? "厚労省" : s.source === "city-hatsukaichi" ? "廿日市市" : s.source === "city-shiso" ? "宍粟市" : "広島市"}
+          {s.source === "jgrants" ? "jGrants" : s.source === "mhlw" ? "厚労省" : s.source === "j-net21" ? "J-Net21" : s.source === "meti" ? "経産省" : s.source === "city-hatsukaichi" ? "廿日市市" : s.source === "city-shiso" ? "宍粟市" : "広島市"}
         </span>
         {s.target_area.slice(0, 3).map((a) => (
           <span
