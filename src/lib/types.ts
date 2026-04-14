@@ -122,7 +122,7 @@ export type IndustryTag = "medical" | "welfare" | "construction" | "food_manufac
 
 export interface Subsidy {
   id: string;              // ソース別一意ID
-  source: "jgrants" | "mhlw" | "city-hatsukaichi" | "city-shiso" | "city-hiroshima";
+  source: "jgrants" | "mhlw" | "j-net21" | "meti" | "city-hatsukaichi" | "city-shiso" | "city-hiroshima";
   title: string;
   url: string;
   summary?: string;        // 本文抜粋

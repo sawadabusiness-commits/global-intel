@@ -154,14 +154,109 @@ export async function fetchMhlwSubsidies(): Promise<Subsidy[]> {
   }
 }
 
+// --- J-Net21 支援情報ヘッドライン RSS ---
+
+const JNET21_RSS_URL = "https://j-net21.smrj.go.jp/snavi/rss.rdf";
+const JNET21_SUBSIDY_KEYWORDS = ["補助金", "助成金", "給付金", "支援金", "奨励金", "交付金", "融資"];
+
+export async function fetchJNet21Subsidies(): Promise<Subsidy[]> {
+  try {
+    const res = await fetch(JNET21_RSS_URL, {
+      signal: AbortSignal.timeout(8000),
+      headers: { "User-Agent": "global-intel-dashboard/1.0" },
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+    const parsed = parser.parse(xml);
+    // RDF or RSS形式
+    const items: { title?: string; link?: string; description?: string; "dc:date"?: string }[] =
+      parsed?.["rdf:RDF"]?.item ?? parsed?.rss?.channel?.item ?? [];
+    const now = new Date().toISOString();
+
+    return items
+      .filter((it) => JNET21_SUBSIDY_KEYWORDS.some((kw) => (it.title ?? "").includes(kw)))
+      .filter((it) => !shouldExclude(it.title ?? "", it.description))
+      .map((it) => ({
+        id: `j-net21:${it.link}`,
+        source: "j-net21" as const,
+        title: it.title ?? "",
+        url: it.link ?? "",
+        summary: it.description || undefined,
+        published_at: it["dc:date"]
+          ? it["dc:date"].slice(0, 10)
+          : now.slice(0, 10),
+        deadline: null,
+        target_area: ["全国"],
+        industry_tags: tagIndustries((it.title ?? "") + (it.description ?? "")),
+        amount_max: null,
+        fetched_at: now,
+      }))
+      .filter((it) => it.url); // URLなしは除外
+  } catch (e) {
+    console.error("J-Net21 RSS fetch failed:", e);
+    return [];
+  }
+}
+
+// --- 経産省 プレスリリース RSS ---
+
+const METI_RSS_URL = "https://www.meti.go.jp/main/rss/rss.rdf";
+const METI_SUBSIDY_KEYWORDS = ["補助金", "助成金", "給付金", "支援金", "交付金", "公募", "募集"];
+
+export async function fetchMetiSubsidies(): Promise<Subsidy[]> {
+  try {
+    const res = await fetch(METI_RSS_URL, {
+      signal: AbortSignal.timeout(8000),
+      headers: { "User-Agent": "global-intel-dashboard/1.0" },
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_" });
+    const parsed = parser.parse(xml);
+    const items: { title?: string; link?: string; description?: string; "dc:date"?: string; pubDate?: string }[] =
+      parsed?.["rdf:RDF"]?.item ?? parsed?.rss?.channel?.item ?? [];
+    const now = new Date().toISOString();
+
+    return items
+      .filter((it) => METI_SUBSIDY_KEYWORDS.some((kw) => (it.title ?? "").includes(kw)))
+      .filter((it) => !shouldExclude(it.title ?? "", it.description))
+      .map((it) => {
+        const dateStr = it["dc:date"] ?? it.pubDate;
+        const published = dateStr
+          ? new Date(dateStr).toISOString().slice(0, 10)
+          : now.slice(0, 10);
+        return {
+          id: `meti:${it.link}`,
+          source: "meti" as const,
+          title: it.title ?? "",
+          url: it.link ?? "",
+          summary: it.description || undefined,
+          published_at: published,
+          deadline: null,
+          target_area: ["全国"],
+          industry_tags: tagIndustries((it.title ?? "") + (it.description ?? "")),
+          amount_max: null,
+          fetched_at: now,
+        };
+      })
+      .filter((it) => it.url);
+  } catch (e) {
+    console.error("METI RSS fetch failed:", e);
+    return [];
+  }
+}
+
 // --- 統合フェッチ ---
 
 export async function fetchAllSubsidies(): Promise<Subsidy[]> {
   const { fetchAllCitySubsidies } = await import("./subsidies-cities");
-  const [jgrants, mhlw, cities] = await Promise.all([
+  const [jgrants, mhlw, jnet21, meti, cities] = await Promise.all([
     fetchJGrants(),
     fetchMhlwSubsidies(),
+    fetchJNet21Subsidies(),
+    fetchMetiSubsidies(),
     fetchAllCitySubsidies(),
   ]);
-  return [...jgrants, ...mhlw, ...cities];
+  return [...jgrants, ...mhlw, ...jnet21, ...meti, ...cities];
 }
