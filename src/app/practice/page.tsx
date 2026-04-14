@@ -1,5 +1,5 @@
-import { getSubsidies, getLatestSubsidiesDate, getTaxLaw, getLatestTaxLawDate } from "@/lib/kv";
-import type { Subsidy, IndustryTag, TaxLawItem, TaxLawCategory } from "@/lib/types";
+import { getSubsidies, getLatestSubsidiesDate } from "@/lib/kv";
+import type { Subsidy, IndustryTag } from "@/lib/types";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -30,47 +30,6 @@ const REGION_MATCH_KEYS: Record<string, string[]> = {
 function matchRegion(subsidy: Subsidy, region: string): boolean {
   const keys = REGION_MATCH_KEYS[region] ?? [region];
   return subsidy.target_area.some((a) => keys.some((k) => a.includes(k)));
-}
-
-const TAX_CATEGORY_COLOR: Record<TaxLawCategory, { bg: string; text: string }> = {
-  "裁決事例": { bg: "#EF444420", text: "#EF4444" },
-  "通達":     { bg: "#F59E0B20", text: "#F59E0B" },
-  "質疑応答": { bg: "#6366F120", text: "#6366F1" },
-  "法令改正": { bg: "#10B98120", text: "#10B981" },
-  "その他":   { bg: "#64748B20", text: "#94A3B8" },
-};
-
-function TaxLawCard({ t }: { t: TaxLawItem }) {
-  const col = TAX_CATEGORY_COLOR[t.category];
-  return (
-    <article className="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)]">
-      <div className="flex items-start gap-2 flex-wrap">
-        <span
-          className="px-2 py-0.5 rounded text-[10px] font-mono"
-          style={{ background: col.bg, color: col.text }}
-        >
-          {t.category}
-        </span>
-        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[var(--surface-2)] text-[var(--muted)]">
-          {t.source === "kfs" ? "国税不服審判所" : "国税庁"}
-        </span>
-        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[var(--surface-2)] text-[var(--muted)]">
-          {t.published_at}
-        </span>
-      </div>
-      <a
-        href={t.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block mt-2 text-sm hover:text-[#38BDF8] transition-colors"
-      >
-        {t.title}
-      </a>
-      {t.summary && (
-        <p className="text-xs text-[var(--muted)] mt-1 line-clamp-2">{t.summary}</p>
-      )}
-    </article>
-  );
 }
 
 function SubsidyCard({ s }: { s: Subsidy }) {
@@ -144,25 +103,9 @@ function formatDate(iso: string | null | undefined): string {
   return iso.slice(0, 10);
 }
 
-const TAX_CATEGORY_ORDER: TaxLawCategory[] = ["裁決事例", "通達", "質疑応答", "法令改正", "その他"];
-
 export default async function PracticePage() {
-  const [date, taxDate] = await Promise.all([
-    getLatestSubsidiesDate(),
-    getLatestTaxLawDate(),
-  ]);
-  const [subsidies, taxlaw]: [Subsidy[], TaxLawItem[]] = await Promise.all([
-    date ? getSubsidies(date) : Promise.resolve([]),
-    taxDate ? getTaxLaw(taxDate) : Promise.resolve([]),
-  ]);
-
-  // 税務情報 カテゴリ別
-  const byTaxCategory = new Map<TaxLawCategory, TaxLawItem[]>();
-  for (const t of taxlaw) {
-    const list = byTaxCategory.get(t.category) ?? [];
-    list.push(t);
-    byTaxCategory.set(t.category, list);
-  }
+  const date = await getLatestSubsidiesDate();
+  const subsidies: Subsidy[] = date ? await getSubsidies(date) : [];
 
   // 中企庁は専用セクション、それ以外を地域別・業種別に
   const chushoItems = subsidies.filter((s) => s.source === "chusho");
@@ -190,8 +133,7 @@ export default async function PracticePage() {
           <div>
             <h1 className="text-2xl font-bold">実務情報: 補助金・助成金</h1>
             <p className="text-xs text-[var(--muted)] mt-1">
-              補助金: {date ?? "未取得"} / {subsidies.length}件 ／
-              税務情報: {taxDate ?? "未取得"} / {taxlaw.length}件
+              補助金: {date ?? "未取得"} / {subsidies.length}件
             </p>
           </div>
           <Link href="/" className="text-xs text-[#38BDF8] hover:underline">
@@ -199,40 +141,17 @@ export default async function PracticePage() {
           </Link>
         </header>
 
-        {subsidies.length === 0 && taxlaw.length === 0 && chushoItems.length === 0 && (
+        {subsidies.length === 0 && (
           <div className="py-12 text-center text-[var(--muted)]">
             <p>まだデータが取得されていません。</p>
             <p className="text-xs mt-2">Cron実行後（毎日22:00 UTC）に表示されます。</p>
           </div>
         )}
 
-        {/* 税務情報 */}
-        {taxlaw.length > 0 && (
-          <>
-            <h2 className="text-lg font-bold mb-4 text-[#F59E0B]">税務情報</h2>
-            {TAX_CATEGORY_ORDER.map((cat) => {
-              const list = byTaxCategory.get(cat);
-              if (!list || list.length === 0) return null;
-              return (
-                <section key={cat} className="mb-8">
-                  <h3 className="text-sm font-bold mb-3 pb-2 border-b border-[var(--border)]">
-                    {cat}（{list.length}件）
-                  </h3>
-                  <div className="space-y-2">
-                    {list.map((t) => (
-                      <TaxLawCard key={t.id} t={t} />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
-          </>
-        )}
-
         {/* 中企庁 */}
         {chushoItems.length > 0 && (
           <>
-            <h2 className="text-lg font-bold mb-4 mt-10 text-[#EC4899]">中小企業庁 / 事業承継・M&A・補助金公募</h2>
+            <h2 className="text-lg font-bold mb-4 text-[#EC4899]">中小企業庁 / 事業承継・M&A・補助金公募</h2>
             <section className="mb-8">
               <div className="space-y-2">
                 {chushoItems.map((s) => (
