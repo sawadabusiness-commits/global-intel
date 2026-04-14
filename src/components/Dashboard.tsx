@@ -94,6 +94,9 @@ export default function Dashboard({ articles, date, osintVerifications = [], osi
           <a href="/deep-dive" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]">
             Weekly Deep Dive
           </a>
+          <a href="/practice" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]">
+            補助金・助成金
+          </a>
         </nav>
 
         <h3 className="text-[10px] font-mono text-[var(--muted)] uppercase tracking-wider mb-3">
