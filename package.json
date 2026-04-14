@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@vercel/kv": "^3.0.0",
+    "cheerio": "^1.2.0",
     "fast-xml-parser": "^5.5.12",
     "mermaid": "^11.14.0",
     "next": "16.2.2",
