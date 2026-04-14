@@ -139,52 +139,6 @@ export function formatWeeklyContext(summaries: WeeklyMemorySummary[]): string {
   return `═══ 過去の週次レポート要約（連続性参照用） ═══\n${lines.join("\n")}`;
 }
 
-// テーマナラティブ更新用プロンプトのデータ整形
-export function buildNarrativeUpdateInput(
-  memory: IntelligenceMemory | null,
-  todayArticles: AnalyzedArticle[],
-  anomalies: OsintAnomaly[],
-  changedIndicators: KeyIndicatorTracker[],
-): string {
-  const parts: string[] = [];
-
-  // 前回の文脈
-  if (memory?.theme_narratives) {
-    const narrativeLines = Object.values(memory.theme_narratives)
-      .filter((n): n is ThemeNarrative => !!n)
-      .map((n) => `[${n.theme}] ${n.current_summary}`);
-    if (narrativeLines.length > 0) {
-      parts.push(`【前回の文脈メモリ】\n${narrativeLines.join("\n")}`);
-    }
-  }
-
-  // 今日の記事
-  if (todayArticles.length > 0) {
-    const articleLines = todayArticles.map((a) =>
-      `[${a.primary_theme}] ${a.title_ja}`,
-    );
-    parts.push(`【今日の記事（${todayArticles.length}件）】\n${articleLines.join("\n")}`);
-  }
-
-  // 異常値
-  if (anomalies.length > 0) {
-    const anomalyLines = anomalies.map((a) => `[${a.theme}] ${a.detail}（${a.severity}）`);
-    parts.push(`【今日の異常値】\n${anomalyLines.join("\n")}`);
-  }
-
-  // 指標変動
-  const changed = changedIndicators.filter((k) => k.change != null && k.change !== 0);
-  if (changed.length > 0) {
-    const indLines = changed.map((k) => {
-      const dir = k.change! > 0 ? "+" : "";
-      return `${k.label}: ${k.current_value}（${dir}${k.change!.toFixed(2)}）`;
-    });
-    parts.push(`【主要指標の変動】\n${indLines.join("\n")}`);
-  }
-
-  return parts.join("\n\n");
-}
-
 // 初期メモリ作成
 export function createEmptyMemory(today: string): IntelligenceMemory {
   return {

@@ -1,5 +1,5 @@
-import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT, MEMORY_UPDATE_PROMPT, SUMMARY_QUALITY_AUDIT_PROMPT } from "./prompts";
-import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint, ThemeNarrative } from "./types";
+import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT, SUMMARY_QUALITY_AUDIT_PROMPT } from "./prompts";
+import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint } from "./types";
 import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
@@ -484,59 +484,6 @@ export async function generateNovelArticle(
     ...parsed,
     generated_at: new Date().toISOString(),
   };
-}
-
-// --- テーマナラティブ更新 ---
-export async function updateNarratives(
-  inputText: string,
-  today: string,
-  existingNarratives: Partial<Record<ThemeId, ThemeNarrative>>,
-): Promise<Partial<Record<ThemeId, ThemeNarrative>>> {
-  const res = await fetch(GITHUB_MODELS_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: MEMORY_UPDATE_PROMPT },
-        { role: "user", content: inputText },
-      ],
-      max_tokens: 2048,
-      temperature: 0.3,
-    }),
-  });
-
-  if (!res.ok) return existingNarratives;
-
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content ?? "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return existingNarratives;
-
-  const parsed = JSON.parse(jsonMatch[0]);
-  const updated = { ...existingNarratives };
-
-  for (const t of parsed.themes ?? []) {
-    const existing = updated[t.theme as ThemeId];
-    // key_developmentsを既存と結合して直近5件に
-    const devs = [
-      ...(t.key_developments ?? []),
-      ...(existing?.key_developments ?? []),
-    ].slice(0, 5);
-
-    updated[t.theme as ThemeId] = {
-      theme: t.theme,
-      current_summary: t.current_summary ?? existing?.current_summary ?? "",
-      key_developments: devs,
-      dominant_trend: t.dominant_trend ?? existing?.dominant_trend ?? "",
-      last_updated: today,
-    };
-  }
-
-  return updated;
 }
 
 // --- Mermaid図解生成 ---
