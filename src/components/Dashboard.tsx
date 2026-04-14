@@ -100,6 +100,9 @@ export default function Dashboard({ articles, date, osintVerifications = [], osi
           <a href="/fredblog" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]">
             FRED Blog
           </a>
+          <a href="/taxblog" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]">
+            柳谷税理士ブログ
+          </a>
         </nav>
 
         <h3 className="text-[10px] font-mono text-[var(--muted)] uppercase tracking-wider mb-3">

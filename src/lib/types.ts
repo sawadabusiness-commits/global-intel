@@ -315,6 +315,20 @@ export interface TaxLawItem {
   fetched_at: string;
 }
 
+// --- 柳谷税理士ブログ ---
+export interface TaxBlogPost {
+  id: string;
+  title: string;
+  url: string;
+  pubDate: string;
+  author: string;
+  category: string;
+  contentHtml: string;
+  excerpt: string;
+  juniorExplanation: string;
+  fetched_at: string;
+}
+
 // --- FRED Blog ---
 export interface FredBlogPost {
   id: string;
