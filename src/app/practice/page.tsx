@@ -83,16 +83,18 @@ function SubsidyCard({ s }: { s: Subsidy }) {
             background:
               s.source === "jgrants" ? "#6366F120" :
               s.source === "j-net21" ? "#8B5CF620" :
-              s.source === "meti" ? "#F97316" + "20" :
+              s.source === "meti" ? "#F9731620" :
+              s.source === "chusho" ? "#EC489920" :
               "#10B98120",
             color:
               s.source === "jgrants" ? "#6366F1" :
               s.source === "j-net21" ? "#8B5CF6" :
               s.source === "meti" ? "#F97316" :
+              s.source === "chusho" ? "#EC4899" :
               "#10B981",
           }}
         >
-          {s.source === "jgrants" ? "jGrants" : s.source === "mhlw" ? "厚労省" : s.source === "j-net21" ? "J-Net21" : s.source === "meti" ? "経産省" : s.source === "city-hatsukaichi" ? "廿日市市" : s.source === "city-shiso" ? "宍粟市" : "広島市"}
+          {s.source === "jgrants" ? "jGrants" : s.source === "mhlw" ? "厚労省" : s.source === "j-net21" ? "J-Net21" : s.source === "meti" ? "経産省" : s.source === "chusho" ? "中企庁" : s.source === "city-hatsukaichi" ? "廿日市市" : s.source === "city-shiso" ? "宍粟市" : "広島市"}
         </span>
         {s.target_area.slice(0, 3).map((a) => (
           <span
@@ -162,8 +164,12 @@ export default async function PracticePage() {
     byTaxCategory.set(t.category, list);
   }
 
+  // 中企庁は専用セクション、それ以外を地域別・業種別に
+  const chushoItems = subsidies.filter((s) => s.source === "chusho");
+  const otherSubsidies = subsidies.filter((s) => s.source !== "chusho");
+
   const byIndustry = new Map<IndustryTag, Subsidy[]>();
-  for (const s of subsidies) {
+  for (const s of otherSubsidies) {
     for (const tag of s.industry_tags) {
       const list = byIndustry.get(tag) ?? [];
       list.push(s);
@@ -173,7 +179,7 @@ export default async function PracticePage() {
 
   const byRegion = new Map<string, Subsidy[]>();
   for (const region of REGION_ORDER) {
-    const matched = subsidies.filter((s) => matchRegion(s, region));
+    const matched = otherSubsidies.filter((s) => matchRegion(s, region));
     if (matched.length > 0) byRegion.set(region, matched);
   }
 
@@ -193,7 +199,7 @@ export default async function PracticePage() {
           </Link>
         </header>
 
-        {subsidies.length === 0 && taxlaw.length === 0 && (
+        {subsidies.length === 0 && taxlaw.length === 0 && chushoItems.length === 0 && (
           <div className="py-12 text-center text-[var(--muted)]">
             <p>まだデータが取得されていません。</p>
             <p className="text-xs mt-2">Cron実行後（毎日22:00 UTC）に表示されます。</p>
@@ -220,6 +226,20 @@ export default async function PracticePage() {
                 </section>
               );
             })}
+          </>
+        )}
+
+        {/* 中企庁 */}
+        {chushoItems.length > 0 && (
+          <>
+            <h2 className="text-lg font-bold mb-4 mt-10 text-[#EC4899]">中小企業庁 / 事業承継・M&A・補助金公募</h2>
+            <section className="mb-8">
+              <div className="space-y-2">
+                {chushoItems.map((s) => (
+                  <SubsidyCard key={s.id} s={s} />
+                ))}
+              </div>
+            </section>
           </>
         )}
 

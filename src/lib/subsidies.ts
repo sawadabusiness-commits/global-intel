@@ -251,12 +251,14 @@ export async function fetchMetiSubsidies(): Promise<Subsidy[]> {
 
 export async function fetchAllSubsidies(): Promise<Subsidy[]> {
   const { fetchAllCitySubsidies } = await import("./subsidies-cities");
-  const [jgrants, mhlw, jnet21, meti, cities] = await Promise.all([
+  const { fetchChuShoSubsidies } = await import("./subsidies-chusho");
+  const [jgrants, mhlw, jnet21, meti, chusho, cities] = await Promise.all([
     fetchJGrants(),
     fetchMhlwSubsidies(),
     fetchJNet21Subsidies(),
     fetchMetiSubsidies(),
+    fetchChuShoSubsidies(),
     fetchAllCitySubsidies(),
   ]);
-  return [...jgrants, ...mhlw, ...jnet21, ...meti, ...cities];
+  return [...jgrants, ...mhlw, ...jnet21, ...meti, ...chusho, ...cities];
 }
