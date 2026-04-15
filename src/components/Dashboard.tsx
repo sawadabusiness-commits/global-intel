@@ -101,7 +101,7 @@ export default function Dashboard({ articles, date, osintVerifications = [], osi
             FRED Blog
           </a>
           <a href="/taxblog" className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[var(--muted)] hover:bg-[var(--surface-2)]">
-            柳谷税理士ブログ
+            税務判例記事
           </a>
         </nav>
 
