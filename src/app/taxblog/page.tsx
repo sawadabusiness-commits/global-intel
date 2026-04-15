@@ -112,7 +112,7 @@ export default async function TaxBlogPage() {
       <div className="max-w-3xl mx-auto">
         <header className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">柳谷税理士ブログ</h1>
+            <h1 className="text-2xl font-bold">税務判例記事</h1>
             <p className="text-xs text-[var(--muted)] mt-1">
               個人の税務調査・審理・国際課税に特化
               {month && <span className="ml-2">（{month} 取得 / {posts.length}件）</span>}
