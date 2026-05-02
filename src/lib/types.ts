@@ -150,6 +150,7 @@ export interface AnalyzedArticle {
   impact: ImpactLevel;
   timeframe: Timeframe;
   analysis: GeminiAnalysis | null;
+  so_what?: string | null;
   mermaid?: string;
   created_at: string;
 }

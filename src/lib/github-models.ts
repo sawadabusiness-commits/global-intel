@@ -21,6 +21,7 @@ export interface BatchSummaryItem {
   cross_themes: ThemeId[];
   impact: ImpactLevel;
   timeframe: Timeframe;
+  so_what?: string | null;
 }
 
 /** バッチ要約の出力をバリデーションし、不正な項目を修正 or 除外 */
@@ -46,6 +47,8 @@ function validateSummaries(items: BatchSummaryItem[]): BatchSummaryItem[] {
       timeframe: (VALID_TIMEFRAMES.has(item.timeframe) ? item.timeframe : "short") as Timeframe,
       // summary_ja が長すぎる場合は切り詰め
       summary_ja: item.summary_ja.length > 500 ? item.summary_ja.slice(0, 497) + "…" : item.summary_ja,
+      // so_what は 100字に切り詰め（nullはそのまま）
+      so_what: item.so_what ? (item.so_what.length > 100 ? item.so_what.slice(0, 97) + "…" : item.so_what) : null,
     }));
 }
 
