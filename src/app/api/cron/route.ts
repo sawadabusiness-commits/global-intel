@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
-import { batchSummarize, verifyPrediction, selectTopHeadline } from "@/lib/github-models";
-import { saveArticles, setLatestDate, saveHeadline, getAllPredictions, updatePrediction } from "@/lib/kv";
+import { batchSummarize, verifyPrediction, selectTopHeadline, generateClusters } from "@/lib/github-models";
+import { saveArticles, setLatestDate, saveHeadline, saveClusters, getAllPredictions, updatePrediction } from "@/lib/kv";
 import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -90,16 +90,24 @@ export async function GET(req: NextRequest) {
     await saveArticles(today, analyzed);
     await setLatestDate(today);
 
-    // 5. TOP HEADLINE 選定（~3秒）
+    // 5. TOP HEADLINE 選定 + クラスタリング（並列、~5秒）
     let headlineId: string | null = null;
+    let clusterCount = 0;
     try {
-      const headline = await selectTopHeadline(analyzed);
+      const [headline, clusters] = await Promise.all([
+        selectTopHeadline(analyzed),
+        generateClusters(analyzed),
+      ]);
       if (headline) {
         await saveHeadline(today, headline);
         headlineId = headline.article_id;
       }
+      if (clusters.length > 0) {
+        await saveClusters(today, clusters);
+        clusterCount = clusters.length;
+      }
     } catch (e) {
-      console.error("Headline selection failed:", e);
+      console.error("Headline/cluster step failed:", e);
     }
 
     // 6. 予測検証（6ヶ月経過した未検証の予測を最大3件）
@@ -139,6 +147,7 @@ export async function GET(req: NextRequest) {
       fetched: picked.length,
       analyzed: analyzed.length,
       headline: headlineId,
+      clusters: clusterCount,
       verified,
       model: "gpt-4o-mini (GitHub Models)",
     });

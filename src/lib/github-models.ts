@@ -1,5 +1,5 @@
 import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT, SUMMARY_QUALITY_AUDIT_PROMPT } from "./prompts";
-import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint, HeadlineSelection, AnalyzedArticle } from "./types";
+import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint, HeadlineSelection, ClusterGroup, AnalyzedArticle } from "./types";
 import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
@@ -538,6 +538,82 @@ export async function generateMermaid(article: {
     return isValidMermaid(cleaned) ? cleaned : null;
   } catch {
     return null;
+  }
+}
+
+// --- STORY CLUSTERS ---
+const CLUSTER_PROMPT = `あなたはニュース編集者です。今日の記事を関連性・テーマでグループ化し、各グループの総括を書いてください。
+
+【ルール】
+- 3〜5グループに分ける（単独記事のグループも可）
+- すべての記事をいずれか1つのグループに必ず含める
+- labelは日本語15字以内（「─」で区切り構造を示す形式推奨）
+- narrativeは今日の総括（60字以内、今日のポイントを1文で）
+- themeは代表するテーマID（geopolitics / tech_society / economic_policy / emerging_markets / crime_drugs / demographics / energy_resources / financial_system / food_supply / space_cyber / llm_api のいずれか）
+
+出力はJSONのみ（前文・バックティック不要）:
+[
+  {
+    "label": "グループ名",
+    "narrative": "今日の総括",
+    "article_ids": ["id1", "id2"],
+    "theme": "テーマID"
+  }
+]`;
+
+export async function generateClusters(articles: AnalyzedArticle[]): Promise<ClusterGroup[]> {
+  if (articles.length < 2) return [];
+
+  const articleList = articles.map((a) =>
+    `id: ${a.id}\nテーマ: ${a.primary_theme}\nタイトル: ${a.title_ja}`
+  ).join("\n---\n");
+
+  try {
+    const res = await fetch(GITHUB_MODELS_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: CLUSTER_PROMPT },
+          { role: "user", content: `以下の${articles.length}件の記事をグループ化してください:\n\n${articleList}` },
+        ],
+        max_tokens: 1024,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!res.ok) return [];
+    const data = await res.json();
+    const text: string = data.choices?.[0]?.message?.content ?? "";
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+
+    const parsed: ClusterGroup[] = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(parsed) || parsed.length === 0) return [];
+
+    // バリデーション: 各記事IDが実在することを確認、無効IDを除去
+    const validIds = new Set(articles.map((a) => a.id));
+    const cleaned = parsed
+      .map((c) => ({
+        ...c,
+        article_ids: (c.article_ids ?? []).filter((id: string) => validIds.has(id)),
+      }))
+      .filter((c) => c.label && c.narrative && c.article_ids.length > 0 && c.theme);
+
+    // 割り当て漏れ記事を最後のクラスタに追加
+    const assigned = new Set(cleaned.flatMap((c) => c.article_ids));
+    const unassigned = articles.map((a) => a.id).filter((id) => !assigned.has(id));
+    if (unassigned.length > 0 && cleaned.length > 0) {
+      cleaned[cleaned.length - 1].article_ids.push(...unassigned);
+    }
+
+    return cleaned;
+  } catch {
+    return [];
   }
 }
 

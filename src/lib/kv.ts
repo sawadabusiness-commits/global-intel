@@ -1,6 +1,17 @@
 import { kv } from "@vercel/kv";
-import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory, Subsidy, TaxLawItem, FredBlogPost, TaxBlogPost, HeadlineSelection } from "./types";
+import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory, Subsidy, TaxLawItem, FredBlogPost, TaxBlogPost, HeadlineSelection, ClusterGroup } from "./types";
 // Note: OsintSnapshot now uses unified data_points[] instead of separate worldbank/estat fields
+
+// --- STORY CLUSTERS ---
+export async function saveClusters(date: string, clusters: ClusterGroup[]) {
+  await kv.set(`clusters:${date}`, JSON.stringify(clusters));
+}
+
+export async function getClusters(date: string): Promise<ClusterGroup[]> {
+  const data = await kv.get<string>(`clusters:${date}`);
+  if (!data) return [];
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
 
 // --- TOP HEADLINE ---
 export async function saveHeadline(date: string, headline: HeadlineSelection) {

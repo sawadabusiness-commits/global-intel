@@ -1,17 +1,19 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { AnalyzedArticle, ThemeId, OsintVerification, OsintArticle, OsintAnomaly, IntelligenceMemory, HeadlineSelection } from "@/lib/types";
+import type { AnalyzedArticle, ThemeId, OsintVerification, OsintArticle, OsintAnomaly, IntelligenceMemory, HeadlineSelection, ClusterGroup } from "@/lib/types";
 import { THEMES, THEME_MAP } from "@/lib/themes";
 import ThemeFilter from "./ThemeFilter";
 import ArticleCard from "./ArticleCard";
 import IntelBriefing from "./IntelBriefing";
 import TopHeadlineCard from "./TopHeadlineCard";
+import StoryCluster from "./StoryCluster";
 
 interface Props {
   articles: AnalyzedArticle[];
   date: string;
   headline?: HeadlineSelection | null;
+  clusters?: ClusterGroup[];
   osintVerifications?: OsintVerification[];
   osintArticles?: OsintArticle[];
   anomalies?: OsintAnomaly[];
@@ -30,7 +32,7 @@ function saveReadIds(date: string, ids: Set<string>) {
   localStorage.setItem(`read:${date}`, JSON.stringify([...ids]));
 }
 
-export default function Dashboard({ articles, date, headline = null, osintVerifications = [], osintArticles = [], anomalies = [], memory = null }: Props) {
+export default function Dashboard({ articles, date, headline = null, clusters = [], osintVerifications = [], osintArticles = [], anomalies = [], memory = null }: Props) {
   const [selectedTheme, setSelectedTheme] = useState<ThemeId | null>(null);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [hideRead, setHideRead] = useState(false);
@@ -238,41 +240,71 @@ export default function Dashboard({ articles, date, headline = null, osintVerifi
           </div>
         )}
 
-        {/* Other Stories ヘッダー */}
-        {!selectedTheme && headlineArticle && filtered.length > 0 && (
-          <h3 className="text-xs font-mono text-[var(--muted)] uppercase tracking-wider mb-3">
-            Other Stories
-          </h3>
-        )}
-
-        {/* 記事一覧 */}
-        {filtered.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-[var(--muted)] text-sm">
-              {hideRead && articles.length > 0 ? "未読の記事はありません" : "記事がありません"}
-            </p>
-            {hideRead && articles.length > 0 && (
-              <button
-                onClick={() => setHideRead(false)}
-                className="text-[10px] text-[#38BDF8] mt-2 hover:text-[#7DD3FC]"
-              >
-                全記事を表示
-              </button>
+        {/* クラスタ表示（テーマ未選択 + クラスタあり） */}
+        {!selectedTheme && clusters.length > 0 ? (
+          <>
+            {filtered.length === 0 && !hideRead ? (
+              <div className="text-center py-20">
+                <p className="text-[var(--muted)] text-sm">記事がありません</p>
+              </div>
+            ) : filtered.length === 0 && hideRead ? (
+              <div className="text-center py-20">
+                <p className="text-[var(--muted)] text-sm">未読の記事はありません</p>
+                <button onClick={() => setHideRead(false)} className="text-[10px] text-[#38BDF8] mt-2 hover:text-[#7DD3FC]">
+                  全記事を表示
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {clusters.map((cluster, i) => (
+                  <StoryCluster
+                    key={i}
+                    cluster={cluster}
+                    articles={filtered}
+                    date={date}
+                    readIds={readIds}
+                    onRead={markAsRead}
+                    verificationMap={verificationMap}
+                    hideRead={hideRead}
+                  />
+                ))}
+              </div>
             )}
-          </div>
+          </>
         ) : (
-          <div className="space-y-4">
-            {filtered.map((article) => (
-              <ArticleCard
-                key={article.id}
-                article={article}
-                date={date}
-                isRead={readIds.has(article.id)}
-                onRead={markAsRead}
-                osintVerification={verificationMap.get(article.id)}
-              />
-            ))}
-          </div>
+          <>
+            {/* フラットリスト（テーマフィルター時 or クラスタなし） */}
+            {!selectedTheme && headlineArticle && filtered.length > 0 && (
+              <h3 className="text-xs font-mono text-[var(--muted)] uppercase tracking-wider mb-3">
+                Other Stories
+              </h3>
+            )}
+            {filtered.length === 0 ? (
+              <div className="text-center py-20">
+                <p className="text-[var(--muted)] text-sm">
+                  {hideRead && articles.length > 0 ? "未読の記事はありません" : "記事がありません"}
+                </p>
+                {hideRead && articles.length > 0 && (
+                  <button onClick={() => setHideRead(false)} className="text-[10px] text-[#38BDF8] mt-2 hover:text-[#7DD3FC]">
+                    全記事を表示
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filtered.map((article) => (
+                  <ArticleCard
+                    key={article.id}
+                    article={article}
+                    date={date}
+                    isRead={readIds.has(article.id)}
+                    onRead={markAsRead}
+                    osintVerification={verificationMap.get(article.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
