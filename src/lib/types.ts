@@ -344,6 +344,14 @@ export interface FredBlogPost {
   fetched_at: string;
 }
 
+// --- STORY CLUSTERS ---
+export interface ClusterGroup {
+  label: string;
+  narrative: string;
+  article_ids: string[];
+  theme: ThemeId;
+}
+
 // --- TOP HEADLINE ---
 export interface HeadlineSelection {
   article_id: string;
