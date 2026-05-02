@@ -343,6 +343,13 @@ export interface FredBlogPost {
   fetched_at: string;
 }
 
+// --- TOP HEADLINE ---
+export interface HeadlineSelection {
+  article_id: string;
+  reason: string;
+  so_what: string;
+}
+
 // --- Vercel KV のキー設計 ---
 // articles:{date}        → AnalyzedArticle[]
 // predictions:{id}       → Prediction

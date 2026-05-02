@@ -1,15 +1,17 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { AnalyzedArticle, ThemeId, OsintVerification, OsintArticle, OsintAnomaly, IntelligenceMemory } from "@/lib/types";
+import type { AnalyzedArticle, ThemeId, OsintVerification, OsintArticle, OsintAnomaly, IntelligenceMemory, HeadlineSelection } from "@/lib/types";
 import { THEMES, THEME_MAP } from "@/lib/themes";
 import ThemeFilter from "./ThemeFilter";
 import ArticleCard from "./ArticleCard";
 import IntelBriefing from "./IntelBriefing";
+import TopHeadlineCard from "./TopHeadlineCard";
 
 interface Props {
   articles: AnalyzedArticle[];
   date: string;
+  headline?: HeadlineSelection | null;
   osintVerifications?: OsintVerification[];
   osintArticles?: OsintArticle[];
   anomalies?: OsintAnomaly[];
@@ -28,7 +30,7 @@ function saveReadIds(date: string, ids: Set<string>) {
   localStorage.setItem(`read:${date}`, JSON.stringify([...ids]));
 }
 
-export default function Dashboard({ articles, date, osintVerifications = [], osintArticles = [], anomalies = [], memory = null }: Props) {
+export default function Dashboard({ articles, date, headline = null, osintVerifications = [], osintArticles = [], anomalies = [], memory = null }: Props) {
   const [selectedTheme, setSelectedTheme] = useState<ThemeId | null>(null);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [hideRead, setHideRead] = useState(false);
@@ -46,7 +48,10 @@ export default function Dashboard({ articles, date, osintVerifications = [], osi
     });
   }, [date]);
 
+  const headlineArticle = headline ? articles.find((a) => a.id === headline.article_id) ?? null : null;
+
   const filtered = articles.filter((a) => {
+    if (!selectedTheme && headlineArticle && a.id === headlineArticle.id) return false;
     if (selectedTheme && a.primary_theme !== selectedTheme && !a.cross_themes.includes(selectedTheme)) {
       return false;
     }
@@ -173,6 +178,18 @@ export default function Dashboard({ articles, date, osintVerifications = [], osi
           <IntelBriefing anomalies={anomalies} memory={memory} date={date} />
         )}
 
+        {/* TOP HEADLINE */}
+        {!selectedTheme && headlineArticle && headline && (
+          <TopHeadlineCard
+            article={headlineArticle}
+            headline={headline}
+            date={date}
+            isRead={readIds.has(headlineArticle.id)}
+            onRead={markAsRead}
+            osintVerification={verificationMap.get(headlineArticle.id)}
+          />
+        )}
+
         {/* OSINT独自記事 */}
         {osintArticles.length > 0 && !selectedTheme && !(hideRead && unreadOsint === 0) && (
           <div className="mb-6">
@@ -219,6 +236,13 @@ export default function Dashboard({ articles, date, osintVerifications = [], osi
               })}
             </div>
           </div>
+        )}
+
+        {/* Other Stories ヘッダー */}
+        {!selectedTheme && headlineArticle && filtered.length > 0 && (
+          <h3 className="text-xs font-mono text-[var(--muted)] uppercase tracking-wider mb-3">
+            Other Stories
+          </h3>
         )}
 
         {/* 記事一覧 */}

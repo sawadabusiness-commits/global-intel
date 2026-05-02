@@ -1,5 +1,5 @@
 import { BATCH_SUMMARY_PROMPT, DEEP_ANALYSIS_PROMPT, WEEKLY_DEEP_DIVE_PROMPT, ANALYST4_VERIFICATION_PROMPT, ANALYST5_NOVEL_ARTICLE_PROMPT, SUMMARY_QUALITY_AUDIT_PROMPT } from "./prompts";
-import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint } from "./types";
+import type { NewsDataArticle, ThemeId, ImpactLevel, Timeframe, Prediction, PredictionStatus, WeeklyReport, OsintVerification, OsintArticle, OsintAnomaly, GdeltToneData, OsintDataPoint, HeadlineSelection, AnalyzedArticle } from "./types";
 import type { DeepAnalysis } from "./gemini";
 
 const GITHUB_MODELS_URL = "https://models.inference.ai.azure.com/chat/completions";
@@ -533,6 +533,72 @@ export async function generateMermaid(article: {
       .replace(/```\s*$/, "")
       .trim();
     return isValidMermaid(cleaned) ? cleaned : null;
+  } catch {
+    return null;
+  }
+}
+
+// --- TOP HEADLINE 選定 ---
+const TOP_HEADLINE_PROMPT = `あなたはSHINJIRO（沢田）専属の情報キュレーターです。
+
+SHINJIROのプロファイル:
+- 税理士・M&A・事業承継コンサルタント（広島県）
+- 顧問先: 医療・福祉機関、建設業（下請）、食品製造・小売
+- 投資銘柄: INPEX（1605）、WDS（Woodside）、JT（2914）、クレディセゾン 等
+- 関心軸: エネルギー価格、日本金融政策、地政学リスク、AI実務応用、税制改正、M&A動向
+
+今日の記事一覧から「TODAY'S HEADLINE」を1本選定してください。
+
+【選定基準（優先度順）】
+1. 投資銘柄に直接影響する変化（エネルギー価格急変、金融政策変更）
+2. 顧問先業種（医療・建設業・食品）に影響する制度・政策変化
+3. M&A・事業承継・税制に関係する重要な動き
+4. 日本の事業環境に波及する地政学リスク
+5. AIの実務応用に関わるブレークスルー
+
+impact=5の記事を優先しつつ、上記基準と照らし合わせて最終選定すること。
+
+出力はJSONのみ（前文・バックティック不要）:
+{
+  "article_id": "選定した記事のarticle_id",
+  "reason": "なぜ今日のヘッドラインに選んだか（60字以内）",
+  "so_what": "SHINJIROへの具体的な示唆・注目点（80字以内）"
+}`;
+
+export async function selectTopHeadline(articles: AnalyzedArticle[]): Promise<HeadlineSelection | null> {
+  if (articles.length === 0) return null;
+
+  const articleList = articles.map((a) =>
+    `article_id: ${a.id}\nテーマ: ${a.primary_theme}\nimpact: ${a.impact}\ntimeframe: ${a.timeframe}\nタイトル: ${a.title_ja}\n要約: ${a.summary_ja}`
+  ).join("\n---\n");
+
+  try {
+    const res = await fetch(GITHUB_MODELS_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.GITHUB_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: TOP_HEADLINE_PROMPT },
+          { role: "user", content: `以下の${articles.length}件から今日のTOP HEADLINEを選定してください:\n\n${articleList}` },
+        ],
+        max_tokens: 512,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text: string = data.choices?.[0]?.message?.content ?? "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!parsed.article_id || !parsed.reason || !parsed.so_what) return null;
+    if (!articles.find((a) => a.id === parsed.article_id)) return null;
+    return parsed as HeadlineSelection;
   } catch {
     return null;
   }
