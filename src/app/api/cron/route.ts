@@ -82,6 +82,7 @@ export async function GET(req: NextRequest) {
         impact: s.impact,
         timeframe: s.timeframe,
         analysis: null,
+        so_what: s.so_what ?? null,
         created_at: new Date().toISOString(),
       };
     });

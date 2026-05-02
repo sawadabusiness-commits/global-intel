@@ -140,6 +140,17 @@ export default function ArticleCard({ article, date, isRead, onRead, osintVerifi
         {article.summary_ja}
       </p>
 
+      {/* So What */}
+      {article.so_what && (
+        <div
+          className="mt-2 px-3 py-2 rounded-lg text-[11px] leading-relaxed"
+          style={{ background: "#38BDF810", borderLeft: "2px solid #38BDF8", color: "#7DD3FC" }}
+        >
+          <span className="font-mono text-[9px] tracking-wider text-[#38BDF8] mr-1">▶ 示唆</span>
+          {article.so_what}
+        </div>
+      )}
+
       {/* ソース */}
       <div className="flex items-center gap-3 mt-3 text-[10px] font-mono text-[var(--muted)]">
         <span>{article.source}</span>
