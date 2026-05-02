@@ -1,6 +1,17 @@
 import { kv } from "@vercel/kv";
-import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory, Subsidy, TaxLawItem, FredBlogPost, TaxBlogPost } from "./types";
+import type { AnalyzedArticle, Prediction, WeeklyDeepDive, OsintSnapshot, OsintVerification, OsintArticle, IntelligenceMemory, Subsidy, TaxLawItem, FredBlogPost, TaxBlogPost, HeadlineSelection } from "./types";
 // Note: OsintSnapshot now uses unified data_points[] instead of separate worldbank/estat fields
+
+// --- TOP HEADLINE ---
+export async function saveHeadline(date: string, headline: HeadlineSelection) {
+  await kv.set(`headline:${date}`, JSON.stringify(headline));
+}
+
+export async function getHeadline(date: string): Promise<HeadlineSelection | null> {
+  const data = await kv.get<string>(`headline:${date}`);
+  if (!data) return null;
+  return typeof data === "string" ? JSON.parse(data) : data;
+}
 
 // --- 補助金・助成金 ---
 export async function saveSubsidies(date: string, subsidies: Subsidy[]) {

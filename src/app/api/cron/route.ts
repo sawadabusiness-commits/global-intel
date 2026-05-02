@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAllThemes, deduplicateArticles } from "@/lib/newsdata";
-import { batchSummarize, verifyPrediction } from "@/lib/github-models";
-import { saveArticles, setLatestDate, getAllPredictions, updatePrediction } from "@/lib/kv";
+import { batchSummarize, verifyPrediction, selectTopHeadline } from "@/lib/github-models";
+import { saveArticles, setLatestDate, saveHeadline, getAllPredictions, updatePrediction } from "@/lib/kv";
 import type { AnalyzedArticle, NewsDataArticle } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -89,7 +89,19 @@ export async function GET(req: NextRequest) {
     await saveArticles(today, analyzed);
     await setLatestDate(today);
 
-    // 5. 予測検証（6ヶ月経過した未検証の予測を最大3件）
+    // 5. TOP HEADLINE 選定（~3秒）
+    let headlineId: string | null = null;
+    try {
+      const headline = await selectTopHeadline(analyzed);
+      if (headline) {
+        await saveHeadline(today, headline);
+        headlineId = headline.article_id;
+      }
+    } catch (e) {
+      console.error("Headline selection failed:", e);
+    }
+
+    // 6. 予測検証（6ヶ月経過した未検証の予測を最大3件）
     let verified = 0;
     try {
       const sixMonthsAgo = new Date();
@@ -125,6 +137,7 @@ export async function GET(req: NextRequest) {
       date: today,
       fetched: picked.length,
       analyzed: analyzed.length,
+      headline: headlineId,
       verified,
       model: "gpt-4o-mini (GitHub Models)",
     });
